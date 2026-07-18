@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ claim.text }} — Prove Me Wrong</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      background: #f0efec;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .card {
+      width: 100%;
+      max-width: 480px;
+      background: #fff;
+      border-radius: 16px;
+      border: 1px solid #e3e2df;
+      padding: 28px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+    }
+    .kicker { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #6b6b6b; margin: 0 0 12px; }
+    .claim-text { font-size: 1.4rem; font-weight: 700; margin: 0 0 20px; }
+    .verdict { font-size: 1.05rem; font-weight: 600; margin: 0 0 12px; }
+    .verdict.agree { color: #1f7a4d; }
+    .verdict.disagree { color: #b3391f; }
+    .verdict.tie { color: #6b6b6b; }
+    .bar { display: flex; height: 16px; border-radius: 8px; overflow: hidden; background: #e3e2df; margin-bottom: 8px; }
+    .bar .agree { background: #1f7a4d; }
+    .bar .disagree { background: #b3391f; }
+    .split-labels { display: flex; justify-content: space-between; font-size: 0.85rem; color: #6b6b6b; margin-bottom: 20px; }
+    .link-row { display: flex; gap: 8px; }
+    .link-row input {
+      flex: 1;
+      font-size: 0.85rem;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #e3e2df;
+      color: #1a1a1a;
+    }
+    .link-row button {
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: 8px;
+      border: 1px solid #1a1a1a;
+      background: #1a1a1a;
+      color: #fff;
+      padding: 8px 14px;
+      cursor: pointer;
+    }
+    .back { display: block; margin-top: 16px; font-size: 0.85rem; color: #6b6b6b; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <p class="kicker">Prove Me Wrong</p>
+    <p class="claim-text">{{ claim.text }}</p>
+
+    {% if total == 0 %}
+      <p class="verdict tie">No votes yet</p>
+    {% elif agree_pct == disagree_pct %}
+      <p class="verdict tie">Dead even — {{ agree_pct }}% / {{ disagree_pct }}%</p>
+    {% elif agree_pct > disagree_pct %}
+      <p class="verdict agree">Verdict: Agree wins, {{ agree_pct }}% to {{ disagree_pct }}%</p>
+    {% else %}
+      <p class="verdict disagree">Verdict: Disagree wins, {{ disagree_pct }}% to {{ agree_pct }}%</p>
+    {% endif %}
+
+    <div class="bar">
+      <div class="agree" style="width: {{ agree_pct }}%;"></div>
+      <div class="disagree" style="width: {{ disagree_pct }}%;"></div>
+    </div>
+    <div class="split-labels">
+      <span>{{ agree_pct }}% agree ({{ counts.agree }})</span>
+      <span>{{ disagree_pct }}% disagree ({{ counts.disagree }})</span>
+    </div>
+
+    <div class="link-row">
+      <input type="text" id="share-link" value="{{ request.url_root.rstrip('/') }}{{ url_for('main.claim_detail', claim_id=claim.id) }}" readonly>
+      <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('share-link').value)">Copy link</button>
+    </div>
+
+    <a class="back" href="{{ url_for('main.claim_detail', claim_id=claim.id) }}">&larr; Back to full discussion</a>
+  </div>
+</body>
+</html>

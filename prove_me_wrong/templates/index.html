@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Prove Me Wrong{% endblock %}
+{% block content %}
+  {% if claims %}
+    {% for claim in claims %}
+      <a class="card claim-list-item" href="{{ url_for('main.claim_detail', claim_id=claim.id) }}">
+        <p class="claim-text">{{ claim.text }}</p>
+        <p class="muted">{{ claim.total }} vote{{ '' if claim.total == 1 else 's' }}</p>
+      </a>
+    {% endfor %}
+  {% else %}
+    <div class="card">
+      <p class="muted">No claims yet.</p>
+    </div>
+  {% endif %}
+{% endblock %}

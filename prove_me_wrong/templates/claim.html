@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}{{ claim.text }} — Prove Me Wrong{% endblock %}
+{% block content %}
+  <div class="card">
+    <p class="claim-text">{{ claim.text }}</p>
+
+    <div class="bar">
+      <div class="agree" style="width: {{ agree_pct }}%;"></div>
+      <div class="disagree" style="width: {{ disagree_pct }}%;"></div>
+    </div>
+    <div class="split-labels">
+      <span class="agree-label">{{ agree_pct }}% agree ({{ counts.agree }})</span>
+      <span class="disagree-label">{{ disagree_pct }}% disagree ({{ counts.disagree }})</span>
+    </div>
+
+    <form method="post" action="{{ url_for('main.vote', claim_id=claim.id) }}">
+      <div class="vote-buttons">
+        <button class="agree {{ 'active' if my_choice == 'agree' }}" name="choice" value="agree" type="submit">Agree</button>
+        <button class="disagree {{ 'active' if my_choice == 'disagree' }}" name="choice" value="disagree" type="submit">Disagree</button>
+      </div>
+    </form>
+    {% if my_choice %}
+      <p class="your-vote">You voted: {{ my_choice }}</p>
+    {% endif %}
+
+    <p class="muted" style="margin-top: 16px;">
+      <a class="btn" href="{{ url_for('main.claim_card', claim_id=claim.id) }}">Get shareable result card</a>
+    </p>
+  </div>
+
+  <h2 class="section-title">Strongest arguments (AI summary)</h2>
+  <div class="columns">
+    <div class="card">
+      <p class="side-tag agree">Agree</p>
+      <p>{{ summary.agree_summary }}</p>
+    </div>
+    <div class="card">
+      <p class="side-tag disagree">Disagree</p>
+      <p>{{ summary.disagree_summary }}</p>
+    </div>
+  </div>
+
+  <h2 class="section-title">Add your reasoning</h2>
+  <div class="card response-form">
+    <form method="post" action="{{ url_for('main.respond', claim_id=claim.id) }}">
+      <div class="side-choice">
+        <label><input type="radio" name="side" value="agree" {{ 'checked' if my_choice == 'agree' }} required> Agree</label>
+        <label><input type="radio" name="side" value="disagree" {{ 'checked' if my_choice == 'disagree' }}> Disagree</label>
+      </div>
+      <textarea name="body" rows="3" placeholder="Your reasoning or evidence..." required></textarea>
+      <p><button type="submit">Submit response</button></p>
+    </form>
+  </div>
+
+  <h2 class="section-title">All responses ({{ responses|length }})</h2>
+  <div class="card response-list">
+    {% if responses %}
+      {% for r in responses %}
+        <div class="response">
+          <span class="side-tag {{ r.side }}">{{ r.side }}</span>{{ r.body }}
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="muted">No responses yet — be the first.</p>
+    {% endif %}
+  </div>
+{% endblock %}
