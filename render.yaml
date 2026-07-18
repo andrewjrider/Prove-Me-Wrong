@@ -1,0 +1,27 @@
+envVarGroups:
+  - name: prove-me-wrong-secrets
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ADMIN_TOKEN
+        sync: false
+
+services:
+  - type: web
+    name: prove-me-wrong
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn run:app
+    healthCheckPath: /healthz
+    envVars:
+      - fromGroup: prove-me-wrong-secrets
+      - key: DATABASE_PATH
+        value: /var/data/prove_me_wrong.sqlite
+      - key: SESSION_COOKIE_SECURE
+        value: 1
+    disk:
+      name: prove-me-wrong-data
+      mountPath: /var/data
+      sizeGB: 1
+    domains:
+      - provemewrong.info

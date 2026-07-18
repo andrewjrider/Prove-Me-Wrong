@@ -49,6 +49,11 @@ def claim_context(claim_id):
     }
 
 
+@bp.route("/healthz")
+def healthz():
+    return "ok"
+
+
 @bp.route("/")
 def index():
     claims = db.get_claims()
