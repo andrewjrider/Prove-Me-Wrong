@@ -5,6 +5,8 @@ envVarGroups:
         generateValue: true
       - key: ADMIN_TOKEN
         sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
 
 services:
   - type: web

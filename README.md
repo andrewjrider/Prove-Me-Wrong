@@ -7,9 +7,9 @@ A minimal MVP for a "structured disagreement" voting site (provemewrong.info).
 1. A claim (one sentence, admin-entered via `/admin?token=...`)
 2. A binary vote: agree / disagree
 3. A structured response area for short reasoning/evidence text
-4. An AI-generated summary of the strongest arguments on both sides (currently a
-   stubbed placeholder in `prove_me_wrong/summarizer.py` — swap in a real LLM
-   call later without touching the route)
+4. An AI-generated summary of the strongest arguments on both sides, via Claude
+   Haiku (`prove_me_wrong/summarizer.py`). Regenerated only when a new response
+   is submitted and cached on the claim row — page loads never call the API.
 5. A shareable result card at `/claim/<id>/card` showing the current verdict
    and vote split
 
@@ -27,7 +27,7 @@ Street-Acquisition-Agent. No JS framework; server-rendered Jinja templates.
 python -m venv .venv
 .venv\Scripts\activate       # Windows
 pip install -r requirements.txt
-copy .env.example .env       # then edit ADMIN_TOKEN / SECRET_KEY
+copy .env.example .env       # then edit ADMIN_TOKEN / SECRET_KEY / ANTHROPIC_API_KEY
 python run.py
 ```
 

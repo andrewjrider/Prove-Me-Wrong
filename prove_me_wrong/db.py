@@ -7,7 +7,11 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS claims (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     text TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    summary_agree TEXT,
+    summary_disagree TEXT,
+    summary_response_count INTEGER NOT NULL DEFAULT 0,
+    summary_generated_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS votes (
@@ -59,9 +63,19 @@ def init_app(app):
     app.teardown_appcontext(close_db)
 
 
+def ensure_column(conn, table, column, definition):
+    existing = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+    if column not in existing:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
 def init_db():
     conn = get_db()
     conn.executescript(SCHEMA)
+    ensure_column(conn, "claims", "summary_agree", "TEXT")
+    ensure_column(conn, "claims", "summary_disagree", "TEXT")
+    ensure_column(conn, "claims", "summary_response_count", "INTEGER NOT NULL DEFAULT 0")
+    ensure_column(conn, "claims", "summary_generated_at", "TEXT")
     conn.commit()
 
 
@@ -89,6 +103,19 @@ def get_claim(claim_id):
 def get_claims():
     rows = get_db().execute("SELECT * FROM claims ORDER BY created_at DESC, id DESC").fetchall()
     return [dict(row) for row in rows]
+
+
+def update_claim_summary(claim_id, agree_summary, disagree_summary, response_count):
+    conn = get_db()
+    conn.execute(
+        """
+        UPDATE claims
+        SET summary_agree = ?, summary_disagree = ?, summary_response_count = ?, summary_generated_at = ?
+        WHERE id = ?
+        """,
+        (agree_summary, disagree_summary, response_count, utc_now(), claim_id),
+    )
+    conn.commit()
 
 
 def get_vote_counts(claim_id):

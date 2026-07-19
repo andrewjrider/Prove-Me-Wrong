@@ -36,7 +36,10 @@ def claim_context(claim_id):
     agree_pct = round((counts["agree"] / total) * 100) if total else 0
     disagree_pct = 100 - agree_pct if total else 0
     responses = db.get_responses(claim_id)
-    summary = generate_summary(responses)
+    summary = {
+        "agree_summary": claim["summary_agree"] or "No arguments submitted yet.",
+        "disagree_summary": claim["summary_disagree"] or "No arguments submitted yet.",
+    }
     return {
         "claim": claim,
         "counts": counts,
@@ -102,6 +105,11 @@ def respond(claim_id):
 
     voter_id = get_voter_id() or str(uuid.uuid4())
     db.add_response(claim_id, voter_id, side, body)
+
+    claim = db.get_claim(claim_id)
+    responses = db.get_responses(claim_id)
+    summary = generate_summary(claim["text"], responses)
+    db.update_claim_summary(claim_id, summary["agree_summary"], summary["disagree_summary"], len(responses))
 
     response = redirect(url_for("main.claim_detail", claim_id=claim_id))
     return set_voter_cookie(response, voter_id)
