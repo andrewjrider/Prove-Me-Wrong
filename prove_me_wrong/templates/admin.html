@@ -9,4 +9,14 @@
       <p><button type="submit">Create claim</button></p>
     </form>
   </div>
+
+  <h2 class="section-title">Moderation</h2>
+  <div class="card">
+    <p style="margin: 0;">
+      <a href="{{ url_for('main.admin_moderation', token=token) }}">
+        Review pending submissions
+        {% if pending_count %}<span class="pending-badge">{{ pending_count }}</span>{% endif %}
+      </a>
+    </p>
+  </div>
 {% endblock %}

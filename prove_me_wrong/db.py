@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS claims (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     text TEXT NOT NULL,
     created_at TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'approved',
     summary_agree TEXT,
     summary_disagree TEXT,
     summary_response_count INTEGER NOT NULL DEFAULT 0,
@@ -86,10 +87,16 @@ def ensure_column(conn, table, column, definition):
 def init_db():
     conn = get_db()
     conn.executescript(SCHEMA)
+    # Existing rows predate the status column; ALTER backfills them with the
+    # 'approved' default, so claims that were already live stay live.
+    ensure_column(conn, "claims", "status", "TEXT NOT NULL DEFAULT 'approved'")
     ensure_column(conn, "claims", "summary_agree", "TEXT")
     ensure_column(conn, "claims", "summary_disagree", "TEXT")
     ensure_column(conn, "claims", "summary_response_count", "INTEGER NOT NULL DEFAULT 0")
     ensure_column(conn, "claims", "summary_generated_at", "TEXT")
+    # Created after ensure_column, since on an existing DB the status column
+    # doesn't exist until the ALTER above runs.
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_claims_status ON claims(status, created_at)")
     conn.commit()
 
 
@@ -97,12 +104,12 @@ def row_to_dict(row):
     return dict(row) if row else None
 
 
-def create_claim(text):
+def create_claim(text, status="approved"):
     conn = get_db()
     now = utc_now()
     conn.execute(
-        "INSERT INTO claims (text, created_at) VALUES (?, ?)",
-        (text.strip(), now),
+        "INSERT INTO claims (text, created_at, status) VALUES (?, ?, ?)",
+        (text.strip(), now, status),
     )
     claim_id = conn.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
     conn.commit()
@@ -115,8 +122,30 @@ def get_claim(claim_id):
 
 
 def get_claims():
-    rows = get_db().execute("SELECT * FROM claims ORDER BY created_at DESC, id DESC").fetchall()
+    """Approved claims only — this is the public listing."""
+    rows = get_db().execute(
+        "SELECT * FROM claims WHERE status = 'approved' ORDER BY created_at DESC, id DESC"
+    ).fetchall()
     return [dict(row) for row in rows]
+
+
+def get_pending_claims():
+    rows = get_db().execute(
+        "SELECT * FROM claims WHERE status = 'pending' ORDER BY created_at ASC, id ASC"
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_pending_count():
+    return get_db().execute(
+        "SELECT COUNT(*) AS c FROM claims WHERE status = 'pending'"
+    ).fetchone()["c"]
+
+
+def set_claim_status(claim_id, status):
+    conn = get_db()
+    conn.execute("UPDATE claims SET status = ? WHERE id = ?", (status, claim_id))
+    conn.commit()
 
 
 def update_claim_summary(claim_id, agree_summary, disagree_summary, response_count):

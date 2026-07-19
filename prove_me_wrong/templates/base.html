@@ -132,6 +132,11 @@
     .muted { color: var(--muted); font-size: 0.9rem; }
     .claim-list-item { text-decoration: none; display: block; }
     .claim-list-item .claim-text { font-size: 1.05rem; margin-bottom: 8px; }
+    header.site .nav-link { font-size: 0.9rem; font-weight: 600; text-decoration: none; color: var(--accent); }
+    header.site .nav-link:hover { text-decoration: underline; }
+    .form-error { color: var(--disagree); font-size: 0.9rem; margin: 0 0 8px; }
+    .char-count { font-size: 0.8rem; color: var(--muted); text-align: right; margin: 4px 0 0; }
+    .pending-badge { display: inline-block; background: var(--disagree); color: #fff; font-size: 0.75rem; font-weight: 700; border-radius: 10px; padding: 1px 8px; margin-left: 6px; }
     footer.site { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 32px; }
   </style>
 </head>
@@ -139,6 +144,7 @@
   <div class="wrap">
     <header class="site">
       <a class="brand" href="{{ url_for('main.index') }}">Prove Me Wrong</a>
+      <a class="nav-link" href="{{ url_for('main.submit_form') }}">Submit a claim</a>
     </header>
     {% block content %}{% endblock %}
     <footer class="site">Prove Me Wrong &mdash; structured disagreement.</footer>

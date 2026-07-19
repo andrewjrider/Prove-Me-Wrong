@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Submit a claim — Prove Me Wrong{% endblock %}
+{% block content %}
+  <h2 class="section-title">Submit a claim</h2>
+  <div class="card">
+    <p class="muted" style="margin-top: 0;">
+      One sharp, debatable sentence. Submissions are reviewed before they go live.
+    </p>
+    {% if error %}
+      <p class="form-error">{{ error }}</p>
+    {% endif %}
+    <form method="post" action="{{ url_for('main.submit_claim') }}">
+      <textarea id="claim-text" name="text" rows="3"
+                minlength="{{ min_length }}" maxlength="{{ max_length }}"
+                placeholder="e.g. Manual transmissions make you a better driver than an automatic ever will."
+                required>{{ text }}</textarea>
+      <p class="char-count"><span id="char-now">0</span> / {{ max_length }}</p>
+      <p><button type="submit">Submit for review</button></p>
+    </form>
+  </div>
+  <script>
+    (function () {
+      var input = document.getElementById('claim-text');
+      var counter = document.getElementById('char-now');
+      function update() { counter.textContent = input.value.length; }
+      input.addEventListener('input', update);
+      update();
+    })();
+  </script>
+{% endblock %}

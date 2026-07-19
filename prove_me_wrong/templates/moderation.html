@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Moderation — Prove Me Wrong{% endblock %}
+{% block content %}
+  <h2 class="section-title">Pending claims ({{ pending|length }})</h2>
+  <p class="muted" style="margin-top: 0;">
+    <a href="{{ url_for('main.admin_new_claim_form', token=token) }}">&larr; Back to admin</a>
+  </p>
+  {% if pending %}
+    {% for claim in pending %}
+      <div class="card">
+        <p class="claim-text">{{ claim.text }}</p>
+        <p class="muted">Submitted {{ claim.created_at[:10] }}</p>
+        <div class="vote-buttons">
+          <form method="post" action="{{ url_for('main.admin_approve_claim', claim_id=claim.id) }}">
+            <input type="hidden" name="token" value="{{ token }}">
+            <button class="agree" type="submit">Approve</button>
+          </form>
+          <form method="post" action="{{ url_for('main.admin_reject_claim', claim_id=claim.id) }}">
+            <input type="hidden" name="token" value="{{ token }}">
+            <button class="disagree" type="submit">Reject</button>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="card">
+      <p class="muted">Nothing pending review. All caught up.</p>
+    </div>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Thanks — Prove Me Wrong{% endblock %}
+{% block content %}
+  <div class="card">
+    <p class="claim-text">Thanks — your claim is in the queue.</p>
+    <p class="muted">
+      We review submissions before they go live, so it won't appear right away.
+      Check back soon.
+    </p>
+    <p style="margin-top: 16px;">
+      <a class="btn" href="{{ url_for('main.index') }}">Back to all claims</a>
+      <a class="btn" href="{{ url_for('main.submit_form') }}">Submit another</a>
+    </p>
+  </div>
+{% endblock %}
