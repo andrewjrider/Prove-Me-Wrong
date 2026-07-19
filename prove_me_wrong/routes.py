@@ -10,9 +10,17 @@ bp = Blueprint("main", __name__)
 VOTER_COOKIE = "voter_id"
 VOTER_COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 5
 
+VOTE_RATE_LIMIT_WINDOW_SECONDS = 60
+RESPONSE_RATE_LIMIT_WINDOW_SECONDS = 60 * 60
+RESPONSE_RATE_LIMIT_MAX = 5
+
 
 def get_voter_id():
     return request.cookies.get(VOTER_COOKIE)
+
+
+def rate_limited(message):
+    return render_template("rate_limited.html", message=message), 429
 
 
 def set_voter_cookie(response, voter_id):
@@ -87,8 +95,14 @@ def vote(claim_id):
     if choice not in {"agree", "disagree"}:
         abort(400)
 
+    ip = request.remote_addr
+    since = db.utc_ago(VOTE_RATE_LIMIT_WINDOW_SECONDS)
+    if db.count_rate_limit_events(ip, "vote", since, claim_id=claim_id) > 0:
+        return rate_limited("You can only change your vote on a claim once per minute. Try again shortly.")
+
     voter_id = get_voter_id() or str(uuid.uuid4())
     db.cast_vote(claim_id, voter_id, choice)
+    db.record_rate_limit_event(ip, "vote", claim_id=claim_id)
 
     response = redirect(url_for("main.claim_detail", claim_id=claim_id))
     return set_voter_cookie(response, voter_id)
@@ -103,8 +117,14 @@ def respond(claim_id):
     if side not in {"agree", "disagree"} or not body:
         abort(400)
 
+    ip = request.remote_addr
+    since = db.utc_ago(RESPONSE_RATE_LIMIT_WINDOW_SECONDS)
+    if db.count_rate_limit_events(ip, "respond", since) >= RESPONSE_RATE_LIMIT_MAX:
+        return rate_limited("You've submitted too many responses in the last hour. Try again later.")
+
     voter_id = get_voter_id() or str(uuid.uuid4())
     db.add_response(claim_id, voter_id, side, body)
+    db.record_rate_limit_event(ip, "respond")
 
     claim = db.get_claim(claim_id)
     responses = db.get_responses(claim_id)

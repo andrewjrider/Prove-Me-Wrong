@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import current_app, g
 
@@ -38,11 +38,25 @@ CREATE TABLE IF NOT EXISTS responses (
 );
 
 CREATE INDEX IF NOT EXISTS idx_responses_claim ON responses(claim_id, side);
+
+CREATE TABLE IF NOT EXISTS rate_limit_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ip_address TEXT NOT NULL,
+    action TEXT NOT NULL,
+    claim_id INTEGER,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_rate_limit_lookup ON rate_limit_events(ip_address, action, claim_id, created_at);
 """
 
 
 def utc_now():
     return datetime.utcnow().replace(microsecond=0).isoformat()
+
+
+def utc_ago(seconds):
+    return (datetime.utcnow() - timedelta(seconds=seconds)).replace(microsecond=0).isoformat()
 
 
 def get_db():
@@ -171,3 +185,30 @@ def get_responses(claim_id):
         (claim_id,),
     ).fetchall()
     return [dict(row) for row in rows]
+
+
+def count_rate_limit_events(ip_address, action, since, claim_id=None):
+    conn = get_db()
+    if claim_id is None:
+        row = conn.execute(
+            "SELECT COUNT(*) AS c FROM rate_limit_events WHERE ip_address = ? AND action = ? AND created_at >= ?",
+            (ip_address, action, since),
+        ).fetchone()
+    else:
+        row = conn.execute(
+            """
+            SELECT COUNT(*) AS c FROM rate_limit_events
+            WHERE ip_address = ? AND action = ? AND claim_id = ? AND created_at >= ?
+            """,
+            (ip_address, action, claim_id, since),
+        ).fetchone()
+    return row["c"]
+
+
+def record_rate_limit_event(ip_address, action, claim_id=None):
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO rate_limit_events (ip_address, action, claim_id, created_at) VALUES (?, ?, ?, ?)",
+        (ip_address, action, claim_id, utc_now()),
+    )
+    conn.commit()

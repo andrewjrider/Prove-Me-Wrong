@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from flask import Flask
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .config import Config
 
@@ -8,6 +9,7 @@ from .config import Config
 def create_app(config_object=Config):
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(config_object)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     database_path = Path(app.config["DATABASE_PATH"])
     if not database_path.is_absolute():

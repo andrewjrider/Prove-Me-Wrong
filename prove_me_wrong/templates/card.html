@@ -4,6 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ claim.text }} — Prove Me Wrong</title>
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{ claim.text }}">
+  <meta property="og:description" content="{{ agree_pct }}% Agree / {{ disagree_pct }}% Disagree">
+  <meta property="og:url" content="{{ request.url }}">
+  <meta property="og:image" content="{{ url_for('static', filename='og-image.png', _external=True) }}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ claim.text }}">
+  <meta name="twitter:description" content="{{ agree_pct }}% Agree / {{ disagree_pct }}% Disagree">
+  <meta name="twitter:image" content="{{ url_for('static', filename='og-image.png', _external=True) }}">
   <style>
     body {
       margin: 0;
