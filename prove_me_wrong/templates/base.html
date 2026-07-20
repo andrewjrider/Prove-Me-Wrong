@@ -5,149 +5,340 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Prove Me Wrong{% endblock %}</title>
   {% block extra_head %}{% endblock %}
+  <script>
+    // Set theme before first paint to avoid a flash of the wrong mode.
+    (function () {
+      try {
+        var t = localStorage.getItem('pmw-theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
   <style>
     :root {
-      --bg: #f7f7f5;
+      --bg: #f6f5f1;
+      --bg-tint: #efeee9;
       --card: #ffffff;
-      --text: #1a1a1a;
-      --muted: #6b6b6b;
-      --border: #e3e2df;
-      --agree: #1f7a4d;
-      --agree-bg: #e6f4ec;
-      --disagree: #b3391f;
-      --disagree-bg: #fbeae6;
-      --accent: #1a1a1a;
+      --text: #17161c;
+      --muted: #6d6b76;
+      --border: #e6e4de;
+      --border-strong: #d6d3ca;
+      --agree: #12855a;
+      --agree-strong: #0e6f4b;
+      --agree-bg: #e3f4ec;
+      --disagree: #d63a26;
+      --disagree-strong: #bb3020;
+      --disagree-bg: #fce8e4;
+      --accent: #17161c;
+      --shadow: 0 1px 2px rgba(20,18,25,0.04), 0 8px 24px rgba(20,18,25,0.06);
+      --shadow-lift: 0 2px 4px rgba(20,18,25,0.06), 0 18px 40px rgba(20,18,25,0.12);
+      --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
     }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #100f14;
+        --bg-tint: #16151b;
+        --card: #1b1a21;
+        --text: #f3f1ec;
+        --muted: #a6a3ae;
+        --border: #2b2933;
+        --border-strong: #3a3743;
+        --agree: #34d399;
+        --agree-strong: #4ade9f;
+        --agree-bg: rgba(52,211,153,0.14);
+        --disagree: #fb6f5b;
+        --disagree-strong: #ff8672;
+        --disagree-bg: rgba(251,111,91,0.15);
+        --accent: #f3f1ec;
+        --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.4);
+        --shadow-lift: 0 2px 4px rgba(0,0,0,0.35), 0 18px 44px rgba(0,0,0,0.55);
+      }
+    }
+    :root[data-theme="light"] {
+      --bg: #f6f5f1; --bg-tint: #efeee9; --card: #ffffff; --text: #17161c; --muted: #6d6b76;
+      --border: #e6e4de; --border-strong: #d6d3ca; --agree: #12855a; --agree-strong: #0e6f4b;
+      --agree-bg: #e3f4ec; --disagree: #d63a26; --disagree-strong: #bb3020; --disagree-bg: #fce8e4;
+      --accent: #17161c;
+      --shadow: 0 1px 2px rgba(20,18,25,0.04), 0 8px 24px rgba(20,18,25,0.06);
+      --shadow-lift: 0 2px 4px rgba(20,18,25,0.06), 0 18px 40px rgba(20,18,25,0.12);
+    }
+    :root[data-theme="dark"] {
+      --bg: #100f14; --bg-tint: #16151b; --card: #1b1a21; --text: #f3f1ec; --muted: #a6a3ae;
+      --border: #2b2933; --border-strong: #3a3743; --agree: #34d399; --agree-strong: #4ade9f;
+      --agree-bg: rgba(52,211,153,0.14); --disagree: #fb6f5b; --disagree-strong: #ff8672;
+      --disagree-bg: rgba(251,111,91,0.15); --accent: #f3f1ec;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.4);
+      --shadow-lift: 0 2px 4px rgba(0,0,0,0.35), 0 18px 44px rgba(0,0,0,0.55);
+    }
+
     * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      font-family: var(--sans);
       background: var(--bg);
       color: var(--text);
-      line-height: 1.5;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
     }
     a { color: inherit; }
-    .wrap {
-      max-width: 640px;
-      margin: 0 auto;
-      padding: 24px 16px 64px;
-    }
+    .wrap { max-width: 680px; margin: 0 auto; padding: 20px 18px 80px; }
+
+    /* Header */
     header.site {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      margin-bottom: 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; padding: 6px 0 20px; margin-bottom: 8px;
     }
-    header.site .brand {
-      font-weight: 700;
-      font-size: 1.15rem;
-      text-decoration: none;
-    }
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 16px;
-    }
-    .claim-text {
-      font-size: 1.3rem;
-      font-weight: 600;
-      margin: 0 0 16px;
-    }
-    .bar {
-      display: flex;
-      height: 14px;
-      border-radius: 7px;
-      overflow: hidden;
-      background: var(--border);
-      margin-bottom: 8px;
-    }
-    .bar .agree { background: var(--agree); }
-    .bar .disagree { background: var(--disagree); }
-    .split-labels {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.85rem;
-      color: var(--muted);
-      margin-bottom: 16px;
-    }
-    .split-labels .agree-label { color: var(--agree); font-weight: 600; }
-    .split-labels .disagree-label { color: var(--disagree); font-weight: 600; }
-    .vote-buttons {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 8px;
-    }
-    button, .btn {
-      font-size: 0.95rem;
-      font-weight: 600;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      padding: 10px 16px;
-      background: var(--card);
-      cursor: pointer;
-      text-decoration: none;
-      color: var(--text);
-    }
+    header.site .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.12rem; letter-spacing: -0.02em; text-decoration: none; }
+    .brand-mark { width: 22px; height: 22px; border-radius: 7px; overflow: hidden; display: inline-flex; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06); flex: none; }
+    .brand-mark i { display: block; height: 100%; }
+    .brand-mark i.a { width: 55%; background: var(--agree); }
+    .brand-mark i.d { width: 45%; background: var(--disagree); }
+    header.site nav { display: inline-flex; align-items: center; gap: 8px; }
+    .nav-link { font-size: 0.9rem; font-weight: 600; text-decoration: none; color: var(--text); padding: 7px 12px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--card); transition: transform .1s ease, box-shadow .15s ease; }
+    .nav-link:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+    .theme-toggle { font-size: 1rem; line-height: 1; padding: 7px 10px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--card); cursor: pointer; color: var(--text); }
+    .theme-toggle:hover { box-shadow: var(--shadow); }
+
+    /* Hero */
+    .hero { padding: 22px 4px 8px; }
+    .hero h1 { font-family: var(--sans); font-size: clamp(2.1rem, 7vw, 3.2rem); font-weight: 800; letter-spacing: -0.035em; line-height: 1.02; margin: 0 0 14px; }
+    .hero h1 .u-agree { color: var(--agree); }
+    .hero h1 .u-disagree { color: var(--disagree); }
+    .hero p.lede { font-size: 1.08rem; color: var(--muted); max-width: 34em; margin: 0 0 20px; }
+    .hero-cta { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+    /* Cards */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 22px; margin-bottom: 16px; box-shadow: var(--shadow); }
+    .claim-text { font-family: var(--serif); font-size: 1.5rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.25; margin: 0 0 18px; }
+
+    /* Sort tabs */
+    .sort-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 18px 0 18px; }
+    .sort-tab { font-size: 0.88rem; font-weight: 600; text-decoration: none; color: var(--muted); padding: 7px 14px; border-radius: 999px; border: 1px solid transparent; }
+    .sort-tab:hover { color: var(--text); }
+    .sort-tab.active { color: var(--text); background: var(--card); border-color: var(--border-strong); box-shadow: var(--shadow); }
+
+    /* Split bar */
+    .bar { display: flex; height: 16px; border-radius: 999px; overflow: hidden; background: var(--bg-tint); border: 1px solid var(--border); }
+    .bar.big { height: 46px; }
+    /* Width is set inline so bars are correct with no JS; the keyframe just grows them in. */
+    .bar > span { display: flex; align-items: center; justify-content: center; animation: barGrow .9s cubic-bezier(.16,.84,.34,1) both; color: #fff; font-weight: 700; font-size: 0.9rem; white-space: nowrap; overflow: hidden; }
+    @keyframes barGrow { from { width: 0 !important; } }
+    .bar.big > span { font-size: 1.05rem; }
+    .bar > span.agree { background: linear-gradient(180deg, var(--agree-strong), var(--agree)); }
+    .bar > span.disagree { background: linear-gradient(180deg, var(--disagree), var(--disagree-strong)); }
+    .bar.mini { height: 10px; border-radius: 999px; }
+    .bar.mini > span { font-size: 0; }
+
+    .split-labels { display: flex; justify-content: space-between; font-size: 0.9rem; margin-top: 10px; }
+    .split-labels .agree-label { color: var(--agree); font-weight: 700; }
+    .split-labels .disagree-label { color: var(--disagree); font-weight: 700; }
+
+    /* Verdict banner */
+    .verdict { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 0 0 14px; }
+    .verdict .label { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.01em; }
+    .verdict .label.agree { color: var(--agree); }
+    .verdict .label.disagree { color: var(--disagree); }
+    .verdict .label.tie, .verdict .label.none { color: var(--muted); }
+    .verdict .sub { font-size: 0.9rem; color: var(--muted); }
+
+    /* Vote buttons */
+    .vote-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 18px 0 0; }
+    .vote-btn { font-family: var(--sans); font-size: 1.05rem; font-weight: 800; letter-spacing: -0.01em; border-radius: 12px; border: 2px solid var(--border-strong); padding: 15px 16px; background: var(--card); color: var(--text); cursor: pointer; transition: transform .08s ease, box-shadow .15s ease, background .15s ease; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; }
+    .vote-btn .tick { opacity: 0; font-size: 0.95em; }
+    .vote-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+    .vote-btn:active { transform: translateY(0); }
+    .vote-btn.agree { border-color: var(--agree); color: var(--agree); }
+    .vote-btn.agree:hover, .vote-btn.agree.active { background: var(--agree-bg); }
+    .vote-btn.disagree { border-color: var(--disagree); color: var(--disagree); }
+    .vote-btn.disagree:hover, .vote-btn.disagree.active { background: var(--disagree-bg); }
+    .vote-btn.active .tick { opacity: 1; }
+    .your-vote { font-size: 0.88rem; color: var(--muted); margin: 12px 0 0; text-align: center; }
+
+    /* Generic buttons / links-as-buttons */
+    button, .btn { font-family: var(--sans); font-size: 0.95rem; font-weight: 700; border-radius: 10px; border: 1px solid var(--border-strong); padding: 11px 18px; background: var(--card); cursor: pointer; text-decoration: none; color: var(--text); transition: transform .08s ease, box-shadow .15s ease; display: inline-block; }
+    button:hover, .btn:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+    .btn-primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+    .btn-ghost { background: transparent; }
     button.agree, .btn.agree { border-color: var(--agree); color: var(--agree); }
-    button.agree.active, button.agree:hover { background: var(--agree-bg); }
+    button.agree:hover, .btn.agree:hover { background: var(--agree-bg); }
     button.disagree, .btn.disagree { border-color: var(--disagree); color: var(--disagree); }
-    button.disagree.active, button.disagree:hover { background: var(--disagree-bg); }
-    .your-vote { font-size: 0.85rem; color: var(--muted); margin: 4px 0 0; }
-    textarea, input[type=text] {
-      width: 100%;
-      font-family: inherit;
-      font-size: 0.95rem;
-      padding: 10px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      resize: vertical;
-    }
-    .response-form .side-choice {
-      display: flex;
-      gap: 16px;
-      margin: 8px 0;
-      font-size: 0.9rem;
-    }
-    .response-list { margin-top: 8px; }
-    .response {
-      padding: 10px 0;
-      border-top: 1px solid var(--border);
-      font-size: 0.92rem;
-    }
-    .response:first-child { border-top: none; }
-    .response .side-tag {
-      font-size: 0.75rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-      margin-right: 6px;
-    }
-    .response .side-tag.agree { color: var(--agree); }
-    .response .side-tag.disagree { color: var(--disagree); }
-    .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    @media (max-width: 520px) { .columns { grid-template-columns: 1fr; } }
-    h2.section-title { font-size: 1rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 24px 0 8px; }
-    .muted { color: var(--muted); font-size: 0.9rem; }
+    button.disagree:hover, .btn.disagree:hover { background: var(--disagree-bg); }
+
+    /* Forms */
+    textarea, input[type=text] { width: 100%; font-family: var(--sans); font-size: 1rem; padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--border-strong); background: var(--card); color: var(--text); resize: vertical; }
+    textarea:focus, input[type=text]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
+    .response-form .side-choice { display: flex; gap: 10px; margin: 4px 0 12px; }
+    .side-choice label { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; border-radius: 10px; border: 1.5px solid var(--border-strong); font-weight: 700; font-size: 0.92rem; cursor: pointer; }
+    .side-choice label:has(input:checked) { border-width: 2px; }
+    .side-choice label.agree:has(input:checked) { border-color: var(--agree); color: var(--agree); background: var(--agree-bg); }
+    .side-choice label.disagree:has(input:checked) { border-color: var(--disagree); color: var(--disagree); background: var(--disagree-bg); }
+    .side-choice input { accent-color: var(--accent); }
+
+    /* Responses */
+    .response-list { margin-top: 4px; }
+    .response { padding: 14px 0; border-top: 1px solid var(--border); font-size: 0.98rem; line-height: 1.5; }
+    .response:first-child { border-top: none; padding-top: 4px; }
+    .side-tag { display: inline-block; font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 999px; margin-right: 8px; vertical-align: 1px; }
+    .side-tag.agree { color: var(--agree); background: var(--agree-bg); }
+    .side-tag.disagree { color: var(--disagree); background: var(--disagree-bg); }
+
+    /* AI summary columns */
+    .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 560px) { .columns { grid-template-columns: 1fr; } }
+    .summary-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; box-shadow: var(--shadow); }
+    .summary-card.agree { border-top: 3px solid var(--agree); }
+    .summary-card.disagree { border-top: 3px solid var(--disagree); }
+    .summary-card p.body { margin: 8px 0 0; font-size: 0.96rem; line-height: 1.5; }
+
+    /* Misc */
+    h2.section-title { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 800; margin: 30px 0 12px; }
+    .muted { color: var(--muted); font-size: 0.92rem; }
+    .meta-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 0.85rem; color: var(--muted); margin-top: 12px; }
+    .meta-row .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--border-strong); }
+    .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 0.74rem; font-weight: 800; letter-spacing: 0.02em; padding: 3px 9px; border-radius: 999px; }
+    .badge.divisive { color: var(--disagree); background: var(--disagree-bg); }
+    .badge.hot { color: #b8620a; background: color-mix(in srgb, #f59e0b 18%, transparent); }
     .claim-list-item { text-decoration: none; display: block; }
-    .claim-list-item .claim-text { font-size: 1.05rem; margin-bottom: 8px; }
-    header.site .nav-link { font-size: 0.9rem; font-weight: 600; text-decoration: none; color: var(--accent); }
-    header.site .nav-link:hover { text-decoration: underline; }
-    .form-error { color: var(--disagree); font-size: 0.9rem; margin: 0 0 8px; }
-    .char-count { font-size: 0.8rem; color: var(--muted); text-align: right; margin: 4px 0 0; }
-    .pending-badge { display: inline-block; background: var(--disagree); color: #fff; font-size: 0.75rem; font-weight: 700; border-radius: 10px; padding: 1px 8px; margin-left: 6px; }
-    footer.site { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 32px; }
+    .claim-list-item { transition: transform .12s ease, box-shadow .18s ease, border-color .18s ease; }
+    .claim-list-item:hover { transform: translateY(-3px); box-shadow: var(--shadow-lift); border-color: var(--border-strong); }
+    .claim-list-item .claim-text { font-size: 1.24rem; margin-bottom: 14px; }
+    .pending-badge { display: inline-block; background: var(--disagree); color: #fff; font-size: 0.72rem; font-weight: 800; border-radius: 999px; padding: 1px 8px; margin-left: 6px; }
+    .form-error { color: var(--disagree); font-size: 0.92rem; font-weight: 600; margin: 0 0 10px; }
+    .char-count { font-size: 0.8rem; color: var(--muted); text-align: right; margin: 6px 2px 0; }
+    footer.site { text-align: center; color: var(--muted); font-size: 0.82rem; margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--border); }
+    footer.site a { color: var(--muted); }
+
+    /* Confetti canvas */
+    #pmw-confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .bar > span { animation: none !important; }
+      .vote-btn, .btn, .nav-link, .claim-list-item { transition: none !important; }
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <header class="site">
-      <a class="brand" href="{{ url_for('main.index') }}">Prove Me Wrong</a>
-      <a class="nav-link" href="{{ url_for('main.submit_form') }}">Submit a claim</a>
+      <a class="brand" href="{{ url_for('main.index') }}">
+        <span class="brand-mark"><i class="a"></i><i class="d"></i></span>
+        Prove Me Wrong
+      </a>
+      <nav>
+        <a class="nav-link" href="{{ url_for('main.submit_form') }}">Submit a claim</a>
+        <button class="theme-toggle" type="button" aria-label="Toggle dark mode" onclick="pmwToggleTheme()">◐</button>
+      </nav>
     </header>
     {% block content %}{% endblock %}
-    <footer class="site">Prove Me Wrong &mdash; structured disagreement.</footer>
+    <footer class="site">
+      <strong>Prove Me Wrong</strong> — pick a side, back it up. ·
+      <a href="{{ url_for('main.submit_form') }}">Submit a claim</a>
+    </footer>
   </div>
+
+  <script>
+    function pmwToggleTheme() {
+      var cur = document.documentElement.getAttribute('data-theme');
+      if (!cur) {
+        cur = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      var next = cur === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      try { localStorage.setItem('pmw-theme', next); } catch (e) {}
+    }
+
+    (function () {
+      var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      // Count-up numbers. The real value is already in the element's text, so a
+      // paused rAF / hidden tab just leaves the correct number in place; the
+      // animation is a pure enhancement that only runs when the tab is visible.
+      function countUp() {
+        if (reduce || document.visibilityState !== 'visible') return;
+        var els = document.querySelectorAll('.countup[data-to]');
+        els.forEach(function (el) {
+          var to = parseInt(el.getAttribute('data-to'), 10) || 0;
+          if (to <= 0) return;
+          var start = null, dur = 900;
+          function step(ts) {
+            if (!start) start = ts;
+            var p = Math.min((ts - start) / dur, 1);
+            var eased = 1 - Math.pow(1 - p, 3);
+            el.textContent = Math.round(eased * to);
+            if (p < 1) requestAnimationFrame(step);
+          }
+          requestAnimationFrame(step);
+        });
+      }
+
+      // Confetti burst when arriving right after a vote (?voted=agree|disagree).
+      function maybeConfetti() {
+        var params = new URLSearchParams(location.search);
+        var voted = params.get('voted');
+        if (!voted) return;
+        // Clean the URL so a refresh doesn't re-fire.
+        params.delete('voted');
+        var q = params.toString();
+        history.replaceState({}, '', location.pathname + (q ? '?' + q : ''));
+        if (reduce) return;
+
+        var css = getComputedStyle(document.documentElement);
+        var agree = css.getPropertyValue('--agree').trim() || '#12855a';
+        var disagree = css.getPropertyValue('--disagree').trim() || '#d63a26';
+        var win = voted === 'disagree' ? disagree : agree;
+        var colors = [win, win, agree, disagree, '#f59e0b'];
+
+        var canvas = document.createElement('canvas');
+        canvas.id = 'pmw-confetti';
+        document.body.appendChild(canvas);
+        var ctx = canvas.getContext('2d');
+        var dpr = Math.min(window.devicePixelRatio || 1, 2);
+        function size() { canvas.width = innerWidth * dpr; canvas.height = innerHeight * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+        size();
+        var N = 90, parts = [];
+        for (var i = 0; i < N; i++) {
+          parts.push({
+            x: innerWidth / 2 + (Math.random() - 0.5) * 120,
+            y: innerHeight * 0.34,
+            vx: (Math.random() - 0.5) * 9,
+            vy: -6 - Math.random() * 9,
+            g: 0.28 + Math.random() * 0.12,
+            s: 5 + Math.random() * 6,
+            rot: Math.random() * 6.28,
+            vr: (Math.random() - 0.5) * 0.3,
+            c: colors[i % colors.length],
+            life: 0
+          });
+        }
+        var t0 = performance.now();
+        function frame(now) {
+          var elapsed = now - t0;
+          ctx.clearRect(0, 0, innerWidth, innerHeight);
+          var alive = false;
+          parts.forEach(function (p) {
+            p.vy += p.g; p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life++;
+            var a = Math.max(0, 1 - elapsed / 1800);
+            if (a > 0 && p.y < innerHeight + 40) alive = true;
+            ctx.save();
+            ctx.globalAlpha = a;
+            ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+            ctx.fillStyle = p.c;
+            ctx.fillRect(-p.s / 2, -p.s / 2, p.s, p.s * 0.6);
+            ctx.restore();
+          });
+          if (alive && elapsed < 2000) requestAnimationFrame(frame);
+          else canvas.remove();
+        }
+        requestAnimationFrame(frame);
+      }
+
+      function init() { countUp(); maybeConfetti(); }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+      else init();
+    })();
+  </script>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

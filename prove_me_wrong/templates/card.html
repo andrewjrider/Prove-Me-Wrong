@@ -16,87 +16,94 @@
   <meta name="twitter:description" content="{{ agree_pct }}% Agree / {{ disagree_pct }}% Disagree">
   <meta name="twitter:image" content="{{ url_for('static', filename='og-image.png', _external=True) }}">
   <style>
-    body {
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-      background: #f0efec;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      padding: 24px;
+    :root {
+      --bg: #efeee9; --card: #fff; --text: #17161c; --muted: #6d6b76; --border: #e6e4de;
+      --border-strong: #d6d3ca; --agree: #12855a; --agree-strong: #0e6f4b;
+      --disagree: #d63a26; --disagree-strong: #bb3020; --track: #e7e5df;
+      --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
     }
-    .card {
-      width: 100%;
-      max-width: 480px;
-      background: #fff;
-      border-radius: 16px;
-      border: 1px solid #e3e2df;
-      padding: 28px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #0d0c10; --card: #1b1a21; --text: #f3f1ec; --muted: #a6a3ae; --border: #2b2933;
+        --border-strong: #3a3743; --agree: #34d399; --agree-strong: #4ade9f; --disagree: #fb6f5b;
+        --disagree-strong: #ff8672; --track: #2b2933; }
     }
-    .kicker { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #6b6b6b; margin: 0 0 12px; }
-    .claim-text { font-size: 1.4rem; font-weight: 700; margin: 0 0 20px; }
-    .verdict { font-size: 1.05rem; font-weight: 600; margin: 0 0 12px; }
-    .verdict.agree { color: #1f7a4d; }
-    .verdict.disagree { color: #b3391f; }
-    .verdict.tie { color: #6b6b6b; }
-    .bar { display: flex; height: 16px; border-radius: 8px; overflow: hidden; background: #e3e2df; margin-bottom: 8px; }
-    .bar .agree { background: #1f7a4d; }
-    .bar .disagree { background: #b3391f; }
-    .split-labels { display: flex; justify-content: space-between; font-size: 0.85rem; color: #6b6b6b; margin-bottom: 20px; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: var(--sans); background: var(--bg); color: var(--text);
+      display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+    .card { width: 100%; max-width: 500px; background: var(--card); border-radius: 20px;
+      border: 1px solid var(--border); padding: 30px; box-shadow: 0 12px 40px rgba(0,0,0,0.12); }
+    .kicker { display: inline-flex; align-items: center; gap: 8px; font-size: 0.72rem; font-weight: 800;
+      text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 16px; }
+    .brand-mark { width: 18px; height: 18px; border-radius: 6px; overflow: hidden; display: inline-flex; }
+    .brand-mark i { display: block; height: 100%; }
+    .brand-mark i.a { width: 55%; background: var(--agree); }
+    .brand-mark i.d { width: 45%; background: var(--disagree); }
+    .claim-text { font-family: var(--serif); font-size: 1.55rem; font-weight: 700; line-height: 1.22;
+      letter-spacing: -0.01em; margin: 0 0 22px; }
+    .verdict { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.01em; margin: 0 0 14px; }
+    .verdict.agree { color: var(--agree); }
+    .verdict.disagree { color: var(--disagree); }
+    .verdict.tie { color: var(--muted); }
+    .bar { display: flex; height: 44px; border-radius: 999px; overflow: hidden; background: var(--track);
+      border: 1px solid var(--border); margin-bottom: 12px; }
+    .bar > span { display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700;
+      font-size: 1rem; white-space: nowrap; overflow: hidden; }
+    .bar > span.agree { background: linear-gradient(180deg, var(--agree-strong), var(--agree)); }
+    .bar > span.disagree { background: linear-gradient(180deg, var(--disagree), var(--disagree-strong)); }
+    .split-labels { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 24px; }
+    .split-labels .a { color: var(--agree); font-weight: 700; }
+    .split-labels .d { color: var(--disagree); font-weight: 700; }
     .link-row { display: flex; gap: 8px; }
-    .link-row input {
-      flex: 1;
-      font-size: 0.85rem;
-      padding: 8px 10px;
-      border-radius: 8px;
-      border: 1px solid #e3e2df;
-      color: #1a1a1a;
-    }
-    .link-row button {
-      font-size: 0.85rem;
-      font-weight: 600;
-      border-radius: 8px;
-      border: 1px solid #1a1a1a;
-      background: #1a1a1a;
-      color: #fff;
-      padding: 8px 14px;
-      cursor: pointer;
-    }
-    .back { display: block; margin-top: 16px; font-size: 0.85rem; color: #6b6b6b; text-decoration: none; }
+    .link-row input { flex: 1; font-family: var(--sans); font-size: 0.85rem; padding: 11px 12px; border-radius: 10px;
+      border: 1.5px solid var(--border-strong); color: var(--text); background: var(--bg); }
+    .link-row button { font-family: var(--sans); font-size: 0.85rem; font-weight: 700; border-radius: 10px;
+      border: 1px solid var(--text); background: var(--text); color: var(--bg); padding: 11px 16px; cursor: pointer; }
+    .back { display: block; margin-top: 18px; font-size: 0.85rem; color: var(--muted); text-decoration: none; }
+    .back:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
   <div class="card">
-    <p class="kicker">Prove Me Wrong</p>
+    <p class="kicker"><span class="brand-mark"><i class="a"></i><i class="d"></i></span> Prove Me Wrong</p>
     <p class="claim-text">{{ claim.text }}</p>
 
     {% if total == 0 %}
-      <p class="verdict tie">No votes yet</p>
+      <p class="verdict tie">No votes yet — you decide.</p>
     {% elif agree_pct == disagree_pct %}
-      <p class="verdict tie">Dead even — {{ agree_pct }}% / {{ disagree_pct }}%</p>
+      <p class="verdict tie">Dead heat — {{ agree_pct }}% / {{ disagree_pct }}%</p>
     {% elif agree_pct > disagree_pct %}
-      <p class="verdict agree">Verdict: Agree wins, {{ agree_pct }}% to {{ disagree_pct }}%</p>
+      <p class="verdict agree">Agree wins, {{ agree_pct }}% to {{ disagree_pct }}%</p>
     {% else %}
-      <p class="verdict disagree">Verdict: Disagree wins, {{ disagree_pct }}% to {{ agree_pct }}%</p>
+      <p class="verdict disagree">Disagree wins, {{ disagree_pct }}% to {{ agree_pct }}%</p>
     {% endif %}
 
     <div class="bar">
-      <div class="agree" style="width: {{ agree_pct }}%;"></div>
-      <div class="disagree" style="width: {{ disagree_pct }}%;"></div>
+      <span class="agree" style="width: {{ agree_pct }}%;">{% if agree_pct >= 14 %}{{ agree_pct }}%{% endif %}</span>
+      <span class="disagree" style="width: {{ disagree_pct }}%;">{% if disagree_pct >= 14 %}{{ disagree_pct }}%{% endif %}</span>
     </div>
     <div class="split-labels">
-      <span>{{ agree_pct }}% agree ({{ counts.agree }})</span>
-      <span>{{ disagree_pct }}% disagree ({{ counts.disagree }})</span>
+      <span class="a">Agree · {{ counts.agree }}</span>
+      <span class="d">Disagree · {{ counts.disagree }}</span>
     </div>
 
     <div class="link-row">
       <input type="text" id="share-link" value="{{ request.url_root.rstrip('/') }}{{ url_for('main.claim_detail', claim_id=claim.id) }}" readonly>
-      <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('share-link').value)">Copy link</button>
+      <button type="button" id="copy-btn" onclick="copyLink()">Copy link</button>
     </div>
 
-    <a class="back" href="{{ url_for('main.claim_detail', claim_id=claim.id) }}">&larr; Back to full discussion</a>
+    <a class="back" href="{{ url_for('main.claim_detail', claim_id=claim.id) }}">&larr; Back to the full debate</a>
   </div>
+  <script>
+    function copyLink() {
+      var input = document.getElementById('share-link');
+      var btn = document.getElementById('copy-btn');
+      navigator.clipboard.writeText(input.value).then(function () {
+        var prev = btn.textContent;
+        btn.textContent = 'Copied ✓';
+        setTimeout(function () { btn.textContent = prev; }, 1600);
+      });
+    }
+  </script>
 </body>
 </html>

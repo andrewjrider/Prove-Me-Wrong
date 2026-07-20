@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Submit a claim — Prove Me Wrong{% endblock %}
 {% block content %}
-  <h2 class="section-title">Submit a claim</h2>
+  <section class="hero" style="padding-bottom: 4px;">
+    <h1 style="font-size: clamp(1.8rem, 6vw, 2.6rem);">Start an argument.</h1>
+    <p class="lede">One sharp, debatable sentence — the kind people can't help but pick a side on. We review submissions before they go live.</p>
+  </section>
   <div class="card">
-    <p class="muted" style="margin-top: 0;">
-      One sharp, debatable sentence. Submissions are reviewed before they go live.
-    </p>
     {% if error %}
       <p class="form-error">{{ error }}</p>
     {% endif %}
@@ -15,7 +15,7 @@
                 placeholder="e.g. Manual transmissions make you a better driver than an automatic ever will."
                 required>{{ text }}</textarea>
       <p class="char-count"><span id="char-now">0</span> / {{ max_length }}</p>
-      <p><button type="submit">Submit for review</button></p>
+      <p style="margin-bottom: 0;"><button class="btn-primary" type="submit">Submit for review</button></p>
     </form>
   </div>
   <script>

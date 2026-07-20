@@ -17,64 +17,75 @@
   <div class="card">
     <p class="claim-text">{{ claim.text }}</p>
 
-    <div class="bar">
-      <div class="agree" style="width: {{ agree_pct }}%;"></div>
-      <div class="disagree" style="width: {{ disagree_pct }}%;"></div>
+    <div class="verdict">
+      <span class="label {{ verdict.side }}">{{ verdict.label }}</span>
+      {% if total %}
+        <span class="sub">
+          {{ total }} vote{{ '' if total == 1 else 's' }}{% if margin %} · {{ margin }}-point margin{% endif %}
+        </span>
+      {% endif %}
+      {% if divisive %}<span class="badge divisive">⚔️ Too close to call</span>{% endif %}
+    </div>
+
+    <div class="bar big">
+      <span class="agree" style="width: {{ agree_pct }}%;">{% if agree_pct >= 12 %}{{ agree_pct }}%{% endif %}</span>
+      <span class="disagree" style="width: {{ disagree_pct }}%;">{% if disagree_pct >= 12 %}{{ disagree_pct }}%{% endif %}</span>
     </div>
     <div class="split-labels">
-      <span class="agree-label">{{ agree_pct }}% agree ({{ counts.agree }})</span>
-      <span class="disagree-label">{{ disagree_pct }}% disagree ({{ counts.disagree }})</span>
+      <span class="agree-label">Agree · {{ counts.agree }}</span>
+      <span class="disagree-label">Disagree · {{ counts.disagree }}</span>
     </div>
 
     <form method="post" action="{{ url_for('main.vote', claim_id=claim.id) }}">
       <div class="vote-buttons">
-        <button class="agree {{ 'active' if my_choice == 'agree' }}" name="choice" value="agree" type="submit">Agree</button>
-        <button class="disagree {{ 'active' if my_choice == 'disagree' }}" name="choice" value="disagree" type="submit">Disagree</button>
+        <button class="vote-btn agree {{ 'active' if my_choice == 'agree' }}" name="choice" value="agree" type="submit"><span class="tick">✓</span> Agree</button>
+        <button class="vote-btn disagree {{ 'active' if my_choice == 'disagree' }}" name="choice" value="disagree" type="submit"><span class="tick">✓</span> Disagree</button>
       </div>
     </form>
     {% if my_choice %}
-      <p class="your-vote">You voted: {{ my_choice }}</p>
+      <p class="your-vote">You're on the <strong>{{ my_choice }}</strong> side — tap the other button to switch.</p>
+    {% else %}
+      <p class="your-vote">Cast your vote to see where you stand.</p>
     {% endif %}
 
-    <p class="muted" style="margin-top: 16px;">
-      <a class="btn" href="{{ url_for('main.claim_card', claim_id=claim.id) }}">Get shareable result card</a>
+    <p style="margin: 18px 0 0; text-align: center;">
+      <a class="btn btn-ghost" href="{{ url_for('main.claim_card', claim_id=claim.id) }}">↗ Share this result</a>
     </p>
   </div>
 
-  <h2 class="section-title">Strongest arguments (AI summary)</h2>
+  <h2 class="section-title">The strongest case for each side</h2>
   <div class="columns">
-    <div class="card">
-      <p class="side-tag agree">Agree</p>
-      <p>{{ summary.agree_summary }}</p>
+    <div class="summary-card agree">
+      <span class="side-tag agree">Agree</span>
+      <p class="body">{{ summary.agree_summary }}</p>
     </div>
-    <div class="card">
-      <p class="side-tag disagree">Disagree</p>
-      <p>{{ summary.disagree_summary }}</p>
+    <div class="summary-card disagree">
+      <span class="side-tag disagree">Disagree</span>
+      <p class="body">{{ summary.disagree_summary }}</p>
     </div>
   </div>
+  <p class="muted" style="font-size: 0.78rem; margin-top: 10px;">✨ AI-generated from reader arguments — add yours to sharpen it.</p>
 
-  <h2 class="section-title">Add your reasoning</h2>
+  <h2 class="section-title">Add your argument</h2>
   <div class="card response-form">
     <form method="post" action="{{ url_for('main.respond', claim_id=claim.id) }}">
       <div class="side-choice">
-        <label><input type="radio" name="side" value="agree" {{ 'checked' if my_choice == 'agree' }} required> Agree</label>
-        <label><input type="radio" name="side" value="disagree" {{ 'checked' if my_choice == 'disagree' }}> Disagree</label>
+        <label class="agree"><input type="radio" name="side" value="agree" {{ 'checked' if my_choice == 'agree' }} required> Agree</label>
+        <label class="disagree"><input type="radio" name="side" value="disagree" {{ 'checked' if my_choice == 'disagree' }}> Disagree</label>
       </div>
-      <textarea name="body" rows="3" placeholder="Your reasoning or evidence..." required></textarea>
-      <p><button type="submit">Submit response</button></p>
+      <textarea name="body" rows="3" placeholder="Make your case in a sentence or two…" required></textarea>
+      <p style="margin: 12px 0 0;"><button type="submit">Post argument</button></p>
     </form>
   </div>
 
-  <h2 class="section-title">All responses ({{ responses|length }})</h2>
+  <h2 class="section-title">The debate ({{ responses|length }})</h2>
   <div class="card response-list">
     {% if responses %}
       {% for r in responses %}
-        <div class="response">
-          <span class="side-tag {{ r.side }}">{{ r.side }}</span>{{ r.body }}
-        </div>
+        <div class="response"><span class="side-tag {{ r.side }}">{{ r.side }}</span>{{ r.body }}</div>
       {% endfor %}
     {% else %}
-      <p class="muted">No responses yet — be the first.</p>
+      <p class="muted">No arguments yet — be the first to make the case.</p>
     {% endif %}
   </div>
 {% endblock %}

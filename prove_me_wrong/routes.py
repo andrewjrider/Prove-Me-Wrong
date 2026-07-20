@@ -54,13 +54,51 @@ def set_voter_cookie(response, voter_id):
     return response
 
 
+# A claim counts as "divisive" once there's enough of a crowd that a near-even
+# split is meaningful rather than 1-vs-1 noise. Close splits are the whole point
+# of the site, so they get surfaced and badged.
+DIVISIVE_MIN_VOTES = 3
+DIVISIVE_MAX_MARGIN = 20
+
+
+def claim_stats(counts):
+    """Everything derived from a claim's vote counts: percentages, the verdict
+    label, and whether it's a divisive (close) debate. Shared by the homepage
+    and the claim page so the two never disagree."""
+    agree, disagree = counts["agree"], counts["disagree"]
+    total = agree + disagree
+    agree_pct = round((agree / total) * 100) if total else 0
+    disagree_pct = 100 - agree_pct if total else 0
+    margin = abs(agree_pct - disagree_pct)
+
+    if total == 0:
+        verdict = {"label": "No votes yet", "side": "none"}
+        divisive = False
+    elif agree_pct == disagree_pct:
+        verdict = {"label": "Dead heat", "side": "tie"}
+        divisive = total >= DIVISIVE_MIN_VOTES
+    elif agree_pct > disagree_pct:
+        verdict = {"label": "Agree leads", "side": "agree"}
+        divisive = total >= DIVISIVE_MIN_VOTES and margin <= DIVISIVE_MAX_MARGIN
+    else:
+        verdict = {"label": "Disagree leads", "side": "disagree"}
+        divisive = total >= DIVISIVE_MIN_VOTES and margin <= DIVISIVE_MAX_MARGIN
+
+    return {
+        "total": total,
+        "agree_pct": agree_pct,
+        "disagree_pct": disagree_pct,
+        "margin": margin,
+        "verdict": verdict,
+        "divisive": divisive,
+    }
+
+
 def claim_context(claim_id):
     claim = get_approved_claim_or_404(claim_id)
     voter_id = get_voter_id()
     counts = db.get_vote_counts(claim_id)
-    total = counts["agree"] + counts["disagree"]
-    agree_pct = round((counts["agree"] / total) * 100) if total else 0
-    disagree_pct = 100 - agree_pct if total else 0
+    stats = claim_stats(counts)
     responses = db.get_responses(claim_id)
     summary = {
         "agree_summary": claim["summary_agree"] or "No arguments submitted yet.",
@@ -69,12 +107,10 @@ def claim_context(claim_id):
     return {
         "claim": claim,
         "counts": counts,
-        "total": total,
-        "agree_pct": agree_pct,
-        "disagree_pct": disagree_pct,
         "responses": responses,
         "summary": summary,
         "my_choice": db.get_voter_choice(claim_id, voter_id) if voter_id else None,
+        **stats,
     }
 
 
@@ -83,14 +119,43 @@ def healthz():
     return "ok"
 
 
+SORT_OPTIONS = ("hot", "new", "divisive")
+
+
 @bp.route("/")
 def index():
-    claims = db.get_claims()
-    claims_with_counts = []
+    sort = request.args.get("sort", "hot")
+    if sort not in SORT_OPTIONS:
+        sort = "hot"
+
+    claims = db.get_claims()  # approved, newest-first from the DB
+    enriched = []
     for claim in claims:
         counts = db.get_vote_counts(claim["id"])
-        claims_with_counts.append({**claim, "counts": counts, "total": counts["agree"] + counts["disagree"]})
-    return render_template("index.html", claims=claims_with_counts)
+        enriched.append({**claim, "counts": counts, **claim_stats(counts)})
+
+    if sort == "hot":
+        # Most-voted first; ties keep DB order (newest first).
+        enriched.sort(key=lambda c: c["total"], reverse=True)
+    elif sort == "divisive":
+        # Closest splits first among claims with a real crowd; unvoted claims last.
+        enriched.sort(
+            key=lambda c: (
+                0 if c["total"] >= DIVISIVE_MIN_VOTES else 1,
+                c["margin"] if c["total"] >= DIVISIVE_MIN_VOTES else 999,
+                -c["total"],
+            )
+        )
+    # "new" is already newest-first from db.get_claims().
+
+    total_votes = sum(c["total"] for c in enriched)
+    return render_template(
+        "index.html",
+        claims=enriched,
+        sort=sort,
+        claim_count=len(enriched),
+        total_votes=total_votes,
+    )
 
 
 @bp.route("/claim/<int:claim_id>")
@@ -121,7 +186,8 @@ def vote(claim_id):
     db.cast_vote(claim_id, voter_id, choice)
     db.record_rate_limit_event(ip, "vote", claim_id=claim_id)
 
-    response = redirect(url_for("main.claim_detail", claim_id=claim_id))
+    # ?voted= lets the claim page fire a celebratory confetti burst on arrival.
+    response = redirect(url_for("main.claim_detail", claim_id=claim_id, voted=choice))
     return set_voter_cookie(response, voter_id)
 
 

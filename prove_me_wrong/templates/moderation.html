@@ -9,15 +9,15 @@
     {% for claim in pending %}
       <div class="card">
         <p class="claim-text">{{ claim.text }}</p>
-        <p class="muted">Submitted {{ claim.created_at[:10] }}</p>
-        <div class="vote-buttons">
+        <p class="muted" style="margin-bottom: 14px;">Submitted {{ claim.created_at[:10] }}</p>
+        <div style="display: flex; gap: 10px;">
           <form method="post" action="{{ url_for('main.admin_approve_claim', claim_id=claim.id) }}">
             <input type="hidden" name="token" value="{{ token }}">
-            <button class="agree" type="submit">Approve</button>
+            <button class="agree" type="submit">✓ Approve</button>
           </form>
           <form method="post" action="{{ url_for('main.admin_reject_claim', claim_id=claim.id) }}">
             <input type="hidden" name="token" value="{{ token }}">
-            <button class="disagree" type="submit">Reject</button>
+            <button class="disagree" type="submit">✕ Reject</button>
           </form>
         </div>
       </div>
