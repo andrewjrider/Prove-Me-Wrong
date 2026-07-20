@@ -1,17 +1,20 @@
 {% extends "base.html" %}
 {% block title %}{{ claim.text|truncate(40, True, '…') }} — Prove Me Wrong{% endblock %}
 {% block extra_head %}
+  {% set og_img = url_for('main.claim_og', claim_id=claim.id, v=counts.agree ~ 'x' ~ counts.disagree, _external=True) %}
   <meta name="description" content="{{ claim.text }} — currently {{ agree_pct }}% Agree / {{ disagree_pct }}% Disagree on Prove Me Wrong.">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Prove Me Wrong">
   <meta property="og:title" content="{{ claim.text }}">
   <meta property="og:description" content="{{ agree_pct }}% Agree / {{ disagree_pct }}% Disagree">
   <meta property="og:url" content="{{ request.url }}">
-  <meta property="og:image" content="{{ url_for('static', filename='og-image.png', _external=True) }}">
+  <meta property="og:image" content="{{ og_img }}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{{ claim.text }}">
   <meta name="twitter:description" content="{{ agree_pct }}% Agree / {{ disagree_pct }}% Disagree">
-  <meta name="twitter:image" content="{{ url_for('static', filename='og-image.png', _external=True) }}">
+  <meta name="twitter:image" content="{{ og_img }}">
 {% endblock %}
 {% block content %}
   <div class="card">

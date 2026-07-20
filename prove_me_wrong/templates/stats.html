@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Stats — Prove Me Wrong{% endblock %}
+{% block content %}
+  <h2 class="section-title">Traffic</h2>
+  <p class="muted" style="margin-top: 0;">
+    <a href="{{ url_for('main.admin_new_claim_form', token=token) }}">&larr; Back to admin</a>
+  </p>
+
+  <div class="stat-grid">
+    <div class="stat-tile"><div class="stat-num">{{ views_total }}</div><div class="stat-label">Views all-time</div></div>
+    <div class="stat-tile"><div class="stat-num">{{ views_7d }}</div><div class="stat-label">Views · 7 days</div></div>
+    <div class="stat-tile"><div class="stat-num">{{ views_24h }}</div><div class="stat-label">Views · 24 hours</div></div>
+    <div class="stat-tile"><div class="stat-num">{{ votes_total }}</div><div class="stat-label">Votes cast</div></div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-tile"><div class="stat-num">{{ claims_approved }}</div><div class="stat-label">Live claims</div></div>
+    <div class="stat-tile"><div class="stat-num">{{ claims_pending }}</div><div class="stat-label">Pending review</div></div>
+    <div class="stat-tile"><div class="stat-num">{{ responses_total }}</div><div class="stat-label">Arguments</div></div>
+    <div class="stat-tile"><div class="stat-num">{{ (votes_total / views_total * 100) | round | int if views_total else 0 }}%</div><div class="stat-label">Vote rate</div></div>
+  </div>
+
+  <h2 class="section-title">Most-viewed claims · last 7 days</h2>
+  <div class="card">
+    {% if top_claims %}
+      <table class="data-table">
+        <tr><th>Claim</th><th class="num">Views</th></tr>
+        {% for c in top_claims %}
+          <tr>
+            <td><a href="{{ url_for('main.claim_detail', claim_id=c.id) }}">{{ c.text|truncate(70, True, '…') }}</a></td>
+            <td class="num">{{ c.views }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <p class="muted">No claim views recorded in the last 7 days yet.</p>
+    {% endif %}
+  </div>
+
+  <h2 class="section-title">Where traffic comes from · last 7 days</h2>
+  <div class="card">
+    {% if top_referrers %}
+      <table class="data-table">
+        <tr><th>Referrer</th><th class="num">Views</th></tr>
+        {% for r in top_referrers %}
+          <tr><td>{{ r.referrer_host }}</td><td class="num">{{ r.views }}</td></tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <p class="muted">No external referrers yet — traffic so far is direct or unattributed.</p>
+    {% endif %}
+  </div>
+{% endblock %}

@@ -49,6 +49,16 @@ CREATE TABLE IF NOT EXISTS rate_limit_events (
 );
 
 CREATE INDEX IF NOT EXISTS idx_rate_limit_lookup ON rate_limit_events(ip_address, action, claim_id, created_at);
+
+CREATE TABLE IF NOT EXISTS page_views (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    claim_id INTEGER,
+    referrer_host TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_page_views_created ON page_views(created_at);
+CREATE INDEX IF NOT EXISTS idx_page_views_claim ON page_views(claim_id, created_at);
 """
 
 
@@ -241,3 +251,75 @@ def record_rate_limit_event(ip_address, action, claim_id=None):
         (ip_address, action, claim_id, utc_now()),
     )
     conn.commit()
+
+
+# --- Analytics (page views) -------------------------------------------------
+# Privacy-light: we store a coarse referrer host (never the full URL or query,
+# never IP or any PII) and a timestamp. Enough to answer "is anyone here, and
+# where are they coming from" without building a profile of anyone.
+
+def record_page_view(claim_id, referrer_host):
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO page_views (claim_id, referrer_host, created_at) VALUES (?, ?, ?)",
+        (claim_id, (referrer_host or "")[:255], utc_now()),
+    )
+    conn.commit()
+
+
+def count_page_views(since=None):
+    if since:
+        return get_db().execute(
+            "SELECT COUNT(*) AS c FROM page_views WHERE created_at >= ?", (since,)
+        ).fetchone()["c"]
+    return get_db().execute("SELECT COUNT(*) AS c FROM page_views").fetchone()["c"]
+
+
+def top_claims_by_views(limit=8, since=None):
+    params = []
+    where = "WHERE pv.claim_id IS NOT NULL"
+    if since:
+        where += " AND pv.created_at >= ?"
+        params.append(since)
+    params.append(limit)
+    rows = get_db().execute(
+        f"""
+        SELECT c.id AS id, c.text AS text, c.status AS status, COUNT(*) AS views
+        FROM page_views pv JOIN claims c ON c.id = pv.claim_id
+        {where}
+        GROUP BY pv.claim_id
+        ORDER BY views DESC, c.id DESC
+        LIMIT ?
+        """,
+        params,
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def top_referrers(limit=8, since=None, exclude_host=None):
+    params = []
+    where = "WHERE referrer_host != ''"
+    if since:
+        where += " AND created_at >= ?"
+        params.append(since)
+    if exclude_host:
+        where += " AND referrer_host != ?"
+        params.append(exclude_host)
+    params.append(limit)
+    rows = get_db().execute(
+        f"""
+        SELECT referrer_host, COUNT(*) AS views FROM page_views
+        {where}
+        GROUP BY referrer_host ORDER BY views DESC LIMIT ?
+        """,
+        params,
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def count_votes():
+    return get_db().execute("SELECT COUNT(*) AS c FROM votes").fetchone()["c"]
+
+
+def count_responses():
+    return get_db().execute("SELECT COUNT(*) AS c FROM responses").fetchone()["c"]

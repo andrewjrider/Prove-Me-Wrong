@@ -1,9 +1,20 @@
 import uuid
+from pathlib import Path
+from urllib.parse import urlparse
 
-from flask import Blueprint, abort, current_app, redirect, render_template, request, url_for
+from flask import Blueprint, Response, abort, current_app, redirect, render_template, request, url_for
 
 from . import db
+from .og_image import og_png_for_claim
 from .summarizer import generate_summary
+
+# Crawlers, link-preview fetchers, and CLI tools shouldn't inflate the "is anyone
+# actually here" signal. Cheap substring filter on the User-Agent.
+BOT_UA_MARKERS = (
+    "bot", "crawler", "spider", "slurp", "facebookexternalhit", "embedly",
+    "quora link preview", "headlesschrome", "lighthouse", "curl", "wget",
+    "python-requests", "go-http-client", "render/",
+)
 
 bp = Blueprint("main", __name__)
 
@@ -26,6 +37,25 @@ def get_voter_id():
 
 def rate_limited(message):
     return render_template("rate_limited.html", message=message), 429
+
+
+def record_view(claim_id):
+    """Log a page view for analytics. Never let a logging failure or a weird
+    referrer break the actual page — swallow everything."""
+    ua = (request.user_agent.string or "").lower()
+    if any(marker in ua for marker in BOT_UA_MARKERS):
+        return
+    host = ""
+    ref = request.referrer
+    if ref:
+        try:
+            host = (urlparse(ref).hostname or "").lower()
+        except ValueError:
+            host = ""
+    try:
+        db.record_page_view(claim_id, host)
+    except Exception:
+        pass
 
 
 def require_admin():
@@ -149,6 +179,7 @@ def index():
     # "new" is already newest-first from db.get_claims().
 
     total_votes = sum(c["total"] for c in enriched)
+    record_view(None)
     return render_template(
         "index.html",
         claims=enriched,
@@ -160,7 +191,8 @@ def index():
 
 @bp.route("/claim/<int:claim_id>")
 def claim_detail(claim_id):
-    context = claim_context(claim_id)
+    context = claim_context(claim_id)  # 404s unless approved, so views only count real claims
+    record_view(claim_id)
     return render_template("claim.html", **context)
 
 
@@ -168,6 +200,24 @@ def claim_detail(claim_id):
 def claim_card(claim_id):
     context = claim_context(claim_id)
     return render_template("card.html", **context)
+
+
+@bp.route("/claim/<int:claim_id>/og.png")
+def claim_og(claim_id):
+    claim = get_approved_claim_or_404(claim_id)
+    counts = db.get_vote_counts(claim_id)
+    stats = claim_stats(counts)
+    cache_dir = Path(current_app.config["DATABASE_PATH"]).parent / "og_cache"
+    png = og_png_for_claim(
+        cache_dir,
+        claim_id,
+        claim["text"],
+        stats["agree_pct"],
+        stats["disagree_pct"],
+        counts["agree"],
+        counts["disagree"],
+    )
+    return Response(png, mimetype="image/png", headers={"Cache-Control": "public, max-age=300"})
 
 
 @bp.route("/claim/<int:claim_id>/vote", methods=["POST"])
@@ -287,6 +337,27 @@ def admin_moderation():
         "moderation.html",
         token=token,
         pending=db.get_pending_claims(),
+    )
+
+
+@bp.route("/admin/stats")
+def admin_stats():
+    token = require_admin()
+    day = db.utc_ago(24 * 60 * 60)
+    week = db.utc_ago(7 * 24 * 60 * 60)
+    our_host = (urlparse(request.url_root).hostname or "").lower()
+    return render_template(
+        "stats.html",
+        token=token,
+        views_total=db.count_page_views(),
+        views_24h=db.count_page_views(since=day),
+        views_7d=db.count_page_views(since=week),
+        top_claims=db.top_claims_by_views(limit=8, since=week),
+        top_referrers=db.top_referrers(limit=8, since=week, exclude_host=our_host),
+        claims_approved=len(db.get_claims()),
+        claims_pending=db.get_pending_count(),
+        votes_total=db.count_votes(),
+        responses_total=db.count_responses(),
     )
 
 

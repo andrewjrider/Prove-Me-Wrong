@@ -2,6 +2,13 @@
 {% block title %}Prove Me Wrong — pick a side, back it up{% endblock %}
 {% block extra_head %}
   <meta name="description" content="Vote on bold claims, defend your position, and let AI lay out the strongest case for each side. The closest debates rise to the top.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Prove Me Wrong">
+  <meta property="og:title" content="Prove Me Wrong — pick a side, back it up">
+  <meta property="og:description" content="Vote on bold claims, defend your position, and let AI lay out the strongest case for each side.">
+  <meta property="og:image" content="{{ url_for('static', filename='og-image.png', _external=True) }}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="{{ url_for('static', filename='og-image.png', _external=True) }}">
 {% endblock %}
 {% block content %}
   <section class="hero">

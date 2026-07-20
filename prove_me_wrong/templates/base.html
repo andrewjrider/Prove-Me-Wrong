@@ -210,6 +210,20 @@
     footer.site { text-align: center; color: var(--muted); font-size: 0.82rem; margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--border); }
     footer.site a { color: var(--muted); }
 
+    /* Admin stats */
+    .stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
+    @media (min-width: 520px) { .stat-grid { grid-template-columns: repeat(4, 1fr); } }
+    .stat-tile { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; box-shadow: var(--shadow); }
+    .stat-num { font-size: 1.8rem; font-weight: 800; letter-spacing: -0.02em; }
+    .stat-label { font-size: 0.74rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 800; margin-top: 2px; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    .data-table td, .data-table th { text-align: left; padding: 9px 4px; border-bottom: 1px solid var(--border); }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table th { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+    .data-table td.num, .data-table th.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+    .data-table a { text-decoration: none; }
+    .data-table a:hover { text-decoration: underline; }
+
     /* Confetti canvas */
     #pmw-confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; }
 

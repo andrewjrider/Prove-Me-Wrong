@@ -1,0 +1,5 @@
+DejaVu fonts (DejaVuSans-Bold, DejaVuSerif-Bold) are bundled here for
+server-side Open Graph image generation, so rendering is identical on any host.
+DejaVu Fonts are a free, redistributable font family derived from the Bitstream
+Vera Fonts. License: https://dejavu-fonts.github.io/License.html (permissive;
+redistribution including in commercial products is allowed).

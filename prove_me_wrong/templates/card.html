@@ -10,11 +10,14 @@
   <meta property="og:title" content="{{ claim.text }}">
   <meta property="og:description" content="{{ agree_pct }}% Agree / {{ disagree_pct }}% Disagree">
   <meta property="og:url" content="{{ request.url }}">
-  <meta property="og:image" content="{{ url_for('static', filename='og-image.png', _external=True) }}">
+  {% set og_img = url_for('main.claim_og', claim_id=claim.id, v=counts.agree ~ 'x' ~ counts.disagree, _external=True) %}
+  <meta property="og:image" content="{{ og_img }}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{{ claim.text }}">
   <meta name="twitter:description" content="{{ agree_pct }}% Agree / {{ disagree_pct }}% Disagree">
-  <meta name="twitter:image" content="{{ url_for('static', filename='og-image.png', _external=True) }}">
+  <meta name="twitter:image" content="{{ og_img }}">
   <style>
     :root {
       --bg: #efeee9; --card: #fff; --text: #17161c; --muted: #6d6b76; --border: #e6e4de;
