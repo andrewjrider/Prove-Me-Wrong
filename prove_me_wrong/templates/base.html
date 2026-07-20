@@ -210,6 +210,33 @@
     footer.site { text-align: center; color: var(--muted); font-size: 0.82rem; margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--border); }
     footer.site a { color: var(--muted); }
 
+    /* Hero eyebrow */
+    .eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: 0.74rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); background: var(--card); border: 1px solid var(--border-strong); border-radius: 999px; padding: 6px 13px; margin-bottom: 16px; box-shadow: var(--shadow); }
+
+    /* Vote-to-reveal */
+    .tease { font-size: 1rem; color: var(--muted); background: var(--bg-tint); border: 1px dashed var(--border-strong); border-radius: 12px; padding: 15px 16px; margin: 6px 0 0; text-align: center; }
+    .tease strong { color: var(--text); }
+    .standing { margin-top: 14px; text-align: center; font-size: 1.05rem; font-weight: 800; letter-spacing: -0.01em; border-radius: 12px; padding: 13px 14px; }
+    .standing.standing-majority { color: var(--agree); background: var(--agree-bg); }
+    .standing.standing-minority { color: var(--disagree); background: var(--disagree-bg); }
+    .standing.standing-even { color: var(--muted); background: var(--bg-tint); }
+    .share-hook { margin: 16px 0 0; text-align: center; }
+    .vote-error { color: var(--disagree); font-weight: 700; font-size: 0.9rem; margin: 12px 0 0; text-align: center; }
+
+    /* Featured "debate of the day" */
+    a.featured { display: block; text-decoration: none; border-radius: 20px; box-shadow: var(--shadow-lift); margin-bottom: 8px; transition: transform .15s ease; }
+    a.featured:hover { transform: translateY(-3px); }
+    .featured .featured-inner { padding: 26px 24px; border: 1px solid var(--border); border-radius: 20px; background: var(--card); border-top: 4px solid var(--disagree); }
+    .featured .kicker { display: inline-flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--disagree); margin: 0 0 12px; }
+    .featured .claim-text { font-size: clamp(1.5rem, 4.6vw, 2.1rem); margin-bottom: 16px; }
+    .featured .featured-cta { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; font-size: 0.95rem; }
+
+    /* Intrigue tags on list cards */
+    .tag { display: inline-flex; align-items: center; gap: 5px; font-size: 0.76rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; }
+    .tag.divisive { color: var(--disagree); background: var(--disagree-bg); }
+    .tag.hot { color: #b8620a; background: color-mix(in srgb, #f59e0b 22%, transparent); }
+    .tag.fresh { color: var(--muted); background: var(--bg-tint); }
+
     /* Admin stats */
     .stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
     @media (min-width: 520px) { .stat-grid { grid-template-columns: repeat(4, 1fr); } }
@@ -228,8 +255,7 @@
     #pmw-confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; }
 
     @media (prefers-reduced-motion: reduce) {
-      .bar > span { animation: none !important; }
-      .vote-btn, .btn, .nav-link, .claim-list-item { transition: none !important; }
+      .bar > span, .vote-btn, .btn, .nav-link, .claim-list-item, a.featured { transition: none !important; }
     }
   </style>
 </head>
@@ -265,6 +291,7 @@
 
     (function () {
       var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.pmwReduceMotion = reduce;
 
       // Count-up numbers. The real value is already in the element's text, so a
       // paused rAF / hidden tab just leaves the correct number in place; the
@@ -287,43 +314,34 @@
         });
       }
 
-      // Confetti burst when arriving right after a vote (?voted=agree|disagree).
-      function maybeConfetti() {
-        var params = new URLSearchParams(location.search);
-        var voted = params.get('voted');
-        if (!voted) return;
-        // Clean the URL so a refresh doesn't re-fire.
-        params.delete('voted');
-        var q = params.toString();
-        history.replaceState({}, '', location.pathname + (q ? '?' + q : ''));
+      // Reusable confetti burst — the claim-page reveal calls this directly too.
+      window.pmwConfetti = function (winnerSide) {
         if (reduce) return;
-
         var css = getComputedStyle(document.documentElement);
         var agree = css.getPropertyValue('--agree').trim() || '#12855a';
         var disagree = css.getPropertyValue('--disagree').trim() || '#d63a26';
-        var win = voted === 'disagree' ? disagree : agree;
-        var colors = [win, win, agree, disagree, '#f59e0b'];
+        var win = winnerSide === 'disagree' ? disagree : agree;
+        var colors = [win, win, win, agree, disagree, '#f59e0b'];
 
         var canvas = document.createElement('canvas');
         canvas.id = 'pmw-confetti';
         document.body.appendChild(canvas);
         var ctx = canvas.getContext('2d');
         var dpr = Math.min(window.devicePixelRatio || 1, 2);
-        function size() { canvas.width = innerWidth * dpr; canvas.height = innerHeight * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
-        size();
-        var N = 90, parts = [];
+        canvas.width = innerWidth * dpr; canvas.height = innerHeight * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        var N = 120, parts = [];
         for (var i = 0; i < N; i++) {
           parts.push({
-            x: innerWidth / 2 + (Math.random() - 0.5) * 120,
-            y: innerHeight * 0.34,
-            vx: (Math.random() - 0.5) * 9,
-            vy: -6 - Math.random() * 9,
-            g: 0.28 + Math.random() * 0.12,
-            s: 5 + Math.random() * 6,
+            x: innerWidth / 2 + (Math.random() - 0.5) * 180,
+            y: innerHeight * 0.32,
+            vx: (Math.random() - 0.5) * 11,
+            vy: -7 - Math.random() * 11,
+            g: 0.30 + Math.random() * 0.13,
+            s: 6 + Math.random() * 7,
             rot: Math.random() * 6.28,
-            vr: (Math.random() - 0.5) * 0.3,
-            c: colors[i % colors.length],
-            life: 0
+            vr: (Math.random() - 0.5) * 0.35,
+            c: colors[i % colors.length]
           });
         }
         var t0 = performance.now();
@@ -332,20 +350,31 @@
           ctx.clearRect(0, 0, innerWidth, innerHeight);
           var alive = false;
           parts.forEach(function (p) {
-            p.vy += p.g; p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life++;
-            var a = Math.max(0, 1 - elapsed / 1800);
+            p.vy += p.g; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+            var a = Math.max(0, 1 - elapsed / 1950);
             if (a > 0 && p.y < innerHeight + 40) alive = true;
             ctx.save();
             ctx.globalAlpha = a;
             ctx.translate(p.x, p.y); ctx.rotate(p.rot);
             ctx.fillStyle = p.c;
-            ctx.fillRect(-p.s / 2, -p.s / 2, p.s, p.s * 0.6);
+            ctx.fillRect(-p.s / 2, -p.s / 2, p.s, p.s * 0.62);
             ctx.restore();
           });
-          if (alive && elapsed < 2000) requestAnimationFrame(frame);
+          if (alive && elapsed < 2100) requestAnimationFrame(frame);
           else canvas.remove();
         }
         requestAnimationFrame(frame);
+      };
+
+      // Confetti on the no-JS reload path (?voted=agree|disagree).
+      function maybeConfetti() {
+        var params = new URLSearchParams(location.search);
+        var voted = params.get('voted');
+        if (!voted) return;
+        params.delete('voted');
+        var q = params.toString();
+        history.replaceState({}, '', location.pathname + (q ? '?' + q : ''));
+        window.pmwConfetti(voted);
       }
 
       function init() { countUp(); maybeConfetti(); }

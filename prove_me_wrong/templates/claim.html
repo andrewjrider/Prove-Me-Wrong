@@ -17,42 +17,55 @@
   <meta name="twitter:image" content="{{ og_img }}">
 {% endblock %}
 {% block content %}
-  <div class="card">
+  <div class="card" id="vote-card" data-revealed="{{ '1' if my_choice else '0' }}">
     <p class="claim-text">{{ claim.text }}</p>
 
-    <div class="verdict">
-      <span class="label {{ verdict.side }}">{{ verdict.label }}</span>
-      {% if total %}
-        <span class="sub">
-          {{ total }} vote{{ '' if total == 1 else 's' }}{% if margin %} · {{ margin }}-point margin{% endif %}
-        </span>
-      {% endif %}
-      {% if divisive %}<span class="badge divisive">⚔️ Too close to call</span>{% endif %}
+    <div class="pre-vote"{% if my_choice %} hidden{% endif %}>
+      <p class="tease">
+        🔒 {% if total %}<strong>{{ total }}</strong> {{ 'person has' if total == 1 else 'people have' }} taken a side.{% else %}Nobody's voted yet.{% endif %}
+        Pick yours to reveal the split.
+      </p>
     </div>
 
-    <div class="bar big">
-      <span class="agree" style="width: {{ agree_pct }}%;">{% if agree_pct >= 12 %}{{ agree_pct }}%{% endif %}</span>
-      <span class="disagree" style="width: {{ disagree_pct }}%;">{% if disagree_pct >= 12 %}{{ disagree_pct }}%{% endif %}</span>
-    </div>
-    <div class="split-labels">
-      <span class="agree-label">Agree · {{ counts.agree }}</span>
-      <span class="disagree-label">Disagree · {{ counts.disagree }}</span>
+    <div class="results"{% if not my_choice %} hidden{% endif %}>
+      <div class="verdict">
+        <span class="label {{ verdict.side }}">{{ verdict.label }}</span>
+        <span class="sub"{% if not total %} hidden{% endif %}>{{ total }} vote{{ '' if total == 1 else 's' }}{% if margin %} · {{ margin }}-point margin{% endif %}</span>
+        <span class="badge divisive"{% if not divisive %} hidden{% endif %}>⚔️ Too close to call</span>
+      </div>
+
+      <div class="bar big">
+        <span class="agree" data-pct="{{ agree_pct }}" style="width: {{ agree_pct }}%"><span class="pctlabel"><span class="pctnum">{{ agree_pct }}</span>%</span></span>
+        <span class="disagree" data-pct="{{ disagree_pct }}" style="width: {{ disagree_pct }}%"><span class="pctlabel"><span class="pctnum">{{ disagree_pct }}</span>%</span></span>
+      </div>
+      <div class="split-labels">
+        <span class="agree-label">Agree · <span data-count-agree>{{ counts.agree }}</span></span>
+        <span class="disagree-label">Disagree · <span data-count-disagree>{{ counts.disagree }}</span></span>
+      </div>
+
+      <div class="standing standing-{{ you.standing if you else 'even' }}"{% if not you %} hidden{% endif %}>
+        {% if you %}
+          {% if you.standing == 'majority' %}💪 You're with the {{ you.pct }}% majority.
+          {% elif you.standing == 'minority' %}🔥 Hot take — only {{ you.pct }}% see it your way.
+          {% else %}⚖️ Dead even — you're the tiebreaker.{% endif %}
+        {% endif %}
+      </div>
     </div>
 
-    <form method="post" action="{{ url_for('main.vote', claim_id=claim.id) }}">
+    <form method="post" id="vote-form" action="{{ url_for('main.vote', claim_id=claim.id) }}" data-json="{{ url_for('main.vote_json', claim_id=claim.id) }}">
       <div class="vote-buttons">
         <button class="vote-btn agree {{ 'active' if my_choice == 'agree' }}" name="choice" value="agree" type="submit"><span class="tick">✓</span> Agree</button>
         <button class="vote-btn disagree {{ 'active' if my_choice == 'disagree' }}" name="choice" value="disagree" type="submit"><span class="tick">✓</span> Disagree</button>
       </div>
+      <p class="vote-error" role="alert" hidden></p>
     </form>
-    {% if my_choice %}
-      <p class="your-vote">You're on the <strong>{{ my_choice }}</strong> side — tap the other button to switch.</p>
-    {% else %}
-      <p class="your-vote">Cast your vote to see where you stand.</p>
-    {% endif %}
 
-    <p style="margin: 18px 0 0; text-align: center;">
-      <a class="btn btn-ghost" href="{{ url_for('main.claim_card', claim_id=claim.id) }}">↗ Share this result</a>
+    <p class="your-vote"{% if not my_choice %} hidden{% endif %}>
+      You're on the <strong>{{ my_choice }}</strong> side — tap the other to switch.
+    </p>
+
+    <p class="share-hook"{% if not my_choice %} hidden{% endif %}>
+      <a class="btn btn-ghost" href="{{ url_for('main.claim_card', claim_id=claim.id) }}">↗ Think they're wrong? Share it</a>
     </p>
   </div>
 
@@ -91,4 +104,131 @@
       <p class="muted">No arguments yet — be the first to make the case.</p>
     {% endif %}
   </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var card = document.getElementById('vote-card');
+  if (!card) return;
+  var reduce = window.pmwReduceMotion;
+  var form = document.getElementById('vote-form');
+  var jsonUrl = form.getAttribute('data-json');
+  var pre = card.querySelector('.pre-vote');
+  var results = card.querySelector('.results');
+  var segA = results.querySelector('.bar .agree');
+  var segD = results.querySelector('.bar .disagree');
+  var labelA = segA.querySelector('.pctlabel'), labelD = segD.querySelector('.pctlabel');
+  var pctA = segA.querySelector('.pctnum'), pctD = segD.querySelector('.pctnum');
+  var cntA = card.querySelector('[data-count-agree]'), cntD = card.querySelector('[data-count-disagree]');
+  var verdictLabel = card.querySelector('.verdict .label');
+  var verdictSub = card.querySelector('.verdict .sub');
+  var divisiveBadge = card.querySelector('.verdict .badge');
+  var standing = card.querySelector('.standing');
+  var yourVote = card.querySelector('.your-vote');
+  var shareHook = card.querySelector('.share-hook');
+  var errEl = form.querySelector('.vote-error');
+  var btns = Array.prototype.slice.call(form.querySelectorAll('.vote-btn'));
+
+  function countTo(el, to) {
+    // Set the true value up front; the rAF loop only animates toward it when the
+    // tab is actually visible, so a backgrounded/throttled tab is never stuck at 0.
+    if (reduce || document.hidden) { el.textContent = to; return; }
+    var start = null, dur = 900;
+    (function step(ts) {
+      if (!start) start = ts;
+      var p = Math.min((ts - start) / dur, 1);
+      el.textContent = Math.round((1 - Math.pow(1 - p, 3)) * to);
+      if (p < 1) requestAnimationFrame(step);
+    })(performance.now());
+  }
+
+  function animateBar() {
+    var ap = +segA.getAttribute('data-pct'), dp = +segD.getAttribute('data-pct');
+    labelA.style.display = ap < 12 ? 'none' : '';
+    labelD.style.display = dp < 12 ? 'none' : '';
+    if (reduce) {
+      segA.style.transition = segD.style.transition = 'none';
+      segA.style.width = ap + '%'; segD.style.width = dp + '%';
+      pctA.textContent = ap; pctD.textContent = dp;
+      return;
+    }
+    // Trigger a 0 -> target CSS transition via a forced reflow. The final width is
+    // set synchronously (so it's correct even if the tab is backgrounded and rAF
+    // is paused); the fill transition is a pure visual enhancement on top.
+    segA.style.transition = segD.style.transition = 'none';
+    segA.style.width = '0%'; segD.style.width = '0%';
+    void segA.offsetWidth;
+    segA.style.transition = segD.style.transition = '';
+    segA.style.width = ap + '%'; segD.style.width = dp + '%';
+    countTo(pctA, ap); countTo(pctD, dp);
+  }
+
+  function standingText(you) {
+    if (you.standing === 'majority') return "💪 You're with the " + you.pct + "% majority.";
+    if (you.standing === 'minority') return "🔥 Hot take — only " + you.pct + "% see it your way.";
+    return "⚖️ Dead even — you're the tiebreaker.";
+  }
+
+  function paint(d) {
+    segA.setAttribute('data-pct', d.agree_pct);
+    segD.setAttribute('data-pct', d.disagree_pct);
+    cntA.textContent = d.agree;
+    cntD.textContent = d.disagree;
+    verdictLabel.textContent = d.verdict.label;
+    verdictLabel.className = 'label ' + d.verdict.side;
+    verdictSub.textContent = d.total + ' vote' + (d.total === 1 ? '' : 's') + (d.margin ? ' · ' + d.margin + '-point margin' : '');
+    verdictSub.hidden = !d.total;
+    divisiveBadge.hidden = !d.divisive;
+    standing.textContent = standingText(d.you);
+    standing.className = 'standing standing-' + d.you.standing;
+    standing.hidden = false;
+    yourVote.innerHTML = "You're on the <strong>" + d.my_choice + "</strong> side — tap the other to switch.";
+    yourVote.hidden = false;
+    shareHook.hidden = false;
+    btns.forEach(function (b) { b.classList.toggle('active', b.value === d.my_choice); });
+  }
+
+  function reveal(fresh, side) {
+    pre.hidden = true;
+    results.hidden = false;
+    animateBar();
+    if (fresh && side) window.pmwConfetti(side);
+  }
+
+  form.addEventListener('submit', function (e) {
+    var btn = e.submitter || document.activeElement;
+    var choice = btn && btn.value;
+    if (choice !== 'agree' && choice !== 'disagree') return;  // let the browser handle anything odd
+    e.preventDefault();
+    errEl.hidden = true;
+    btns.forEach(function (b) { b.disabled = true; });
+    var body = 'choice=' + encodeURIComponent(choice);
+    fetch(jsonUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body,
+      credentials: 'same-origin'
+    }).then(function (r) {
+      return r.json().then(function (d) { return { ok: r.ok, d: d }; });
+    }).then(function (res) {
+      btns.forEach(function (b) { b.disabled = false; });
+      if (!res.ok || !res.d.ok) {
+        errEl.textContent = (res.d && res.d.error) || 'Something went wrong — try again.';
+        errEl.hidden = false;
+        return;
+      }
+      paint(res.d);
+      reveal(true, res.d.my_choice);
+    }).catch(function () {
+      // Network hiccup → fall back to a full-page form submit.
+      form.submit();
+    });
+  });
+
+  // Returning voter: animate the already-earned results into view on load.
+  // (Confetti for the no-JS reload path is handled by base's ?voted handler.)
+  if (card.getAttribute('data-revealed') === '1') reveal(false);
+})();
+</script>
 {% endblock %}

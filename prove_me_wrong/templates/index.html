@@ -1,29 +1,40 @@
 {% extends "base.html" %}
 {% block title %}Prove Me Wrong — pick a side, back it up{% endblock %}
 {% block extra_head %}
-  <meta name="description" content="Vote on bold claims, defend your position, and let AI lay out the strongest case for each side. The closest debates rise to the top.">
+  <meta name="description" content="Vote on bold claims, see if you're with the crowd or a lone contrarian, and let AI referee the strongest argument on each side.">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Prove Me Wrong">
   <meta property="og:title" content="Prove Me Wrong — pick a side, back it up">
-  <meta property="og:description" content="Vote on bold claims, defend your position, and let AI lay out the strongest case for each side.">
+  <meta property="og:description" content="Vote on bold claims, see if you're with the crowd or a lone contrarian, and let AI referee the strongest argument on each side.">
   <meta property="og:image" content="{{ url_for('static', filename='og-image.png', _external=True) }}">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="{{ url_for('static', filename='og-image.png', _external=True) }}">
 {% endblock %}
 {% block content %}
   <section class="hero">
+    <span class="eyebrow">⚡ Settle it with votes</span>
     <h1>Pick a <span class="u-agree">side</span>.<br>Prove them <span class="u-disagree">wrong</span>.</h1>
     <p class="lede">
-      Vote on bold claims, defend your position in a sentence, and let AI lay out
-      the strongest case for each side. The closest splits rise to the top.
+      Vote on bold claims, find out if you're with the crowd or a lone contrarian,
+      and let AI referee the strongest argument on each side.
     </p>
     <div class="hero-cta">
       <a class="btn btn-primary" href="{{ url_for('main.submit_form') }}">Submit a claim</a>
       {% if claim_count %}
-        <span class="muted">{{ claim_count }} claim{{ '' if claim_count == 1 else 's' }} · <span class="countup" data-to="{{ total_votes }}">{{ total_votes }}</span> vote{{ '' if total_votes == 1 else 's' }} cast</span>
+        <span class="muted">{{ claim_count }} claim{{ '' if claim_count == 1 else 's' }} · <span class="countup" data-to="{{ total_votes }}">0</span> vote{{ '' if total_votes == 1 else 's' }} cast</span>
       {% endif %}
     </div>
   </section>
+
+  {% if featured %}
+    <a class="featured" href="{{ url_for('main.claim_detail', claim_id=featured.id) }}">
+      <div class="featured-inner">
+        <p class="kicker">{% if featured.divisive %}⚔️ Most divisive right now{% else %}🔥 Debate of the day{% endif %}</p>
+        <p class="claim-text">{{ featured.text }}</p>
+        <span class="featured-cta">Take a side <span aria-hidden="true">→</span></span>
+      </div>
+    </a>
+  {% endif %}
 
   {% if claims %}
     <div class="sort-tabs">
@@ -35,25 +46,21 @@
     {% for claim in claims %}
       <a class="card claim-list-item" href="{{ url_for('main.claim_detail', claim_id=claim.id) }}">
         <p class="claim-text">{{ claim.text }}</p>
-        {% if claim.total %}
-          <div class="bar mini">
-            <span class="agree" style="width: {{ claim.agree_pct }}%;"></span>
-            <span class="disagree" style="width: {{ claim.disagree_pct }}%;"></span>
-          </div>
-          <div class="meta-row">
-            <span><strong style="color: var(--agree);">{{ claim.agree_pct }}%</strong> agree</span>
-            <span class="dot"></span>
-            <span><strong style="color: var(--disagree);">{{ claim.disagree_pct }}%</strong> disagree</span>
-            <span class="dot"></span>
-            <span>{{ claim.total }} vote{{ '' if claim.total == 1 else 's' }}</span>
-            {% if claim.divisive %}<span class="badge divisive">⚔️ Divisive</span>{% endif %}
-          </div>
-        {% else %}
-          <div class="meta-row"><span>No votes yet — be the first to weigh in →</span></div>
-        {% endif %}
+        <div class="meta-row">
+          {% if claim.divisive %}
+            <span class="tag divisive">⚔️ Divisive</span>
+          {% elif claim.total == 0 %}
+            <span class="tag fresh">🆕 Fresh</span>
+          {% elif claim.total >= 8 %}
+            <span class="tag hot">🔥 Hot</span>
+          {% endif %}
+          <span>{% if claim.total %}{{ claim.total }} vote{{ '' if claim.total == 1 else 's' }}{% else %}No votes yet{% endif %}</span>
+          <span class="dot"></span>
+          <span>Weigh in →</span>
+        </div>
       </a>
     {% endfor %}
-  {% else %}
+  {% elif not featured %}
     <div class="card" style="text-align: center;">
       <p class="claim-text" style="margin-bottom: 8px;">No claims yet.</p>
       <p class="muted" style="margin-bottom: 18px;">Be the one who starts the argument.</p>

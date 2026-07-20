@@ -2,7 +2,7 @@ import uuid
 from pathlib import Path
 from urllib.parse import urlparse
 
-from flask import Blueprint, Response, abort, current_app, redirect, render_template, request, url_for
+from flask import Blueprint, Response, abort, current_app, jsonify, redirect, render_template, request, url_for
 
 from . import db
 from .og_image import og_png_for_claim
@@ -134,12 +134,14 @@ def claim_context(claim_id):
         "agree_summary": claim["summary_agree"] or "No arguments submitted yet.",
         "disagree_summary": claim["summary_disagree"] or "No arguments submitted yet.",
     }
+    my_choice = db.get_voter_choice(claim_id, voter_id) if voter_id else None
     return {
         "claim": claim,
         "counts": counts,
         "responses": responses,
         "summary": summary,
-        "my_choice": db.get_voter_choice(claim_id, voter_id) if voter_id else None,
+        "my_choice": my_choice,
+        "you": _standing(my_choice, stats) if my_choice else None,
         **stats,
     }
 
@@ -164,12 +166,27 @@ def index():
         counts = db.get_vote_counts(claim["id"])
         enriched.append({**claim, "counts": counts, **claim_stats(counts)})
 
+    total_votes = sum(c["total"] for c in enriched)
+
+    # Featured "debate of the day": the spiciest live claim — most divisive among
+    # those with a real crowd, else the most-voted. Only worth featuring when it
+    # actually creates hierarchy (more than a couple of claims).
+    featured = None
+    if len(enriched) > 2:
+        crowd = [c for c in enriched if c["total"] >= DIVISIVE_MIN_VOTES]
+        if crowd:
+            featured = min(crowd, key=lambda c: (c["margin"], -c["total"]))
+        else:
+            featured = max(enriched, key=lambda c: c["total"])
+            if featured["total"] == 0:
+                featured = None
+    featured_id = featured["id"] if featured else None
+
+    listed = [c for c in enriched if c["id"] != featured_id]
     if sort == "hot":
-        # Most-voted first; ties keep DB order (newest first).
-        enriched.sort(key=lambda c: c["total"], reverse=True)
+        listed.sort(key=lambda c: c["total"], reverse=True)
     elif sort == "divisive":
-        # Closest splits first among claims with a real crowd; unvoted claims last.
-        enriched.sort(
+        listed.sort(
             key=lambda c: (
                 0 if c["total"] >= DIVISIVE_MIN_VOTES else 1,
                 c["margin"] if c["total"] >= DIVISIVE_MIN_VOTES else 999,
@@ -178,11 +195,11 @@ def index():
         )
     # "new" is already newest-first from db.get_claims().
 
-    total_votes = sum(c["total"] for c in enriched)
     record_view(None)
     return render_template(
         "index.html",
-        claims=enriched,
+        claims=listed,
+        featured=featured,
         sort=sort,
         claim_count=len(enriched),
         total_votes=total_votes,
@@ -220,25 +237,70 @@ def claim_og(claim_id):
     return Response(png, mimetype="image/png", headers={"Cache-Control": "public, max-age=300"})
 
 
+VOTE_RATE_LIMIT_MESSAGE = "You can only change your vote once a minute — try again shortly."
+
+
+def _register_vote(claim_id, choice):
+    """Shared vote logic for the form and JSON endpoints. Returns
+    (voter_id, None) on success, or (None, error_message) if rate-limited."""
+    ip = request.remote_addr
+    since = db.utc_ago(VOTE_RATE_LIMIT_WINDOW_SECONDS)
+    if db.count_rate_limit_events(ip, "vote", since, claim_id=claim_id) > 0:
+        return None, VOTE_RATE_LIMIT_MESSAGE
+    voter_id = get_voter_id() or str(uuid.uuid4())
+    db.cast_vote(claim_id, voter_id, choice)
+    db.record_rate_limit_event(ip, "vote", claim_id=claim_id)
+    return voter_id, None
+
+
+def _standing(choice, stats):
+    """Where the voter lands vs the crowd: majority / minority (contrarian) / even."""
+    you_pct = stats["agree_pct"] if choice == "agree" else stats["disagree_pct"]
+    standing = "majority" if you_pct > 50 else "minority" if you_pct < 50 else "even"
+    return {"side": choice, "pct": you_pct, "standing": standing}
+
+
 @bp.route("/claim/<int:claim_id>/vote", methods=["POST"])
 def vote(claim_id):
     get_approved_claim_or_404(claim_id)
     choice = request.form.get("choice")
     if choice not in {"agree", "disagree"}:
         abort(400)
-
-    ip = request.remote_addr
-    since = db.utc_ago(VOTE_RATE_LIMIT_WINDOW_SECONDS)
-    if db.count_rate_limit_events(ip, "vote", since, claim_id=claim_id) > 0:
-        return rate_limited("You can only change your vote on a claim once per minute. Try again shortly.")
-
-    voter_id = get_voter_id() or str(uuid.uuid4())
-    db.cast_vote(claim_id, voter_id, choice)
-    db.record_rate_limit_event(ip, "vote", claim_id=claim_id)
-
-    # ?voted= lets the claim page fire a celebratory confetti burst on arrival.
+    voter_id, error = _register_vote(claim_id, choice)
+    if error:
+        return rate_limited(error)
+    # ?voted= lets the claim page fire a celebratory confetti burst on the no-JS reload path.
     response = redirect(url_for("main.claim_detail", claim_id=claim_id, voted=choice))
     return set_voter_cookie(response, voter_id)
+
+
+@bp.route("/claim/<int:claim_id>/vote.json", methods=["POST"])
+def vote_json(claim_id):
+    """Same vote, but returns the fresh split as JSON so the claim page can do an
+    animated in-place reveal instead of a full reload (progressive enhancement)."""
+    get_approved_claim_or_404(claim_id)
+    choice = request.form.get("choice")
+    if choice not in {"agree", "disagree"}:
+        abort(400)
+    voter_id, error = _register_vote(claim_id, choice)
+    if error:
+        return jsonify(ok=False, error=error), 429
+    counts = db.get_vote_counts(claim_id)
+    stats = claim_stats(counts)
+    resp = jsonify(
+        ok=True,
+        agree=counts["agree"],
+        disagree=counts["disagree"],
+        total=stats["total"],
+        agree_pct=stats["agree_pct"],
+        disagree_pct=stats["disagree_pct"],
+        margin=stats["margin"],
+        divisive=stats["divisive"],
+        verdict=stats["verdict"],
+        my_choice=choice,
+        you=_standing(choice, stats),
+    )
+    return set_voter_cookie(resp, voter_id)
 
 
 @bp.route("/claim/<int:claim_id>/respond", methods=["POST"])
