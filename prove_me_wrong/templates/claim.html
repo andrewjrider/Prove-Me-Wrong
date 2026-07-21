@@ -17,7 +17,7 @@
   <meta name="twitter:image" content="{{ og_img }}">
 {% endblock %}
 {% block content %}
-  <div class="card" id="vote-card" data-revealed="{{ '1' if my_choice else '0' }}">
+  <div class="card" id="vote-card" data-revealed="{{ '1' if my_choice else '0' }}" data-my-choice="{{ my_choice or '' }}">
     <p class="claim-text">{{ claim.text }}</p>
 
     <div class="pre-vote"{% if my_choice %} hidden{% endif %}>
@@ -50,6 +50,11 @@
           {% else %}⚖️ Dead even — you're the tiebreaker.{% endif %}
         {% endif %}
       </div>
+
+      <p class="flip-prompt"{% if not you %} hidden{% endif %}>
+        Read the other side's case below. Changed your mind?
+        <button type="button" class="flip-btn">🔄 Flip my vote</button>
+      </p>
     </div>
 
     <form method="post" id="vote-form" action="{{ url_for('main.vote', claim_id=claim.id) }}" data-json="{{ url_for('main.vote_json', claim_id=claim.id) }}">
@@ -61,7 +66,7 @@
     </form>
 
     <p class="your-vote"{% if not my_choice %} hidden{% endif %}>
-      You're on the <strong>{{ my_choice }}</strong> side — tap the other to switch.
+      You're on the <strong>{{ my_choice }}</strong> side.
     </p>
 
     <p class="share-hook"{% if not my_choice %} hidden{% endif %}>
@@ -94,11 +99,19 @@
     </form>
   </div>
 
-  <h2 class="section-title">The debate ({{ responses|length }})</h2>
+  <h2 class="section-title" id="debate">The debate ({{ responses|length }})</h2>
   <div class="card response-list">
     {% if responses %}
       {% for r in responses %}
-        <div class="response"><span class="side-tag {{ r.side }}">{{ r.side }}</span>{{ r.body }}</div>
+        <div class="response{% if loop.first and r.reaction_count %} top-arg{% endif %}">
+          <div class="response-body">
+            {% if loop.first and r.reaction_count %}<div class="top-arg-badge">🏆 Top argument</div>{% endif %}
+            <span class="side-tag {{ r.side }}">{{ r.side }}</span>{{ r.body }}
+          </div>
+          <form class="react-form" method="post" action="{{ url_for('main.react', response_id=r.id) }}" data-json="{{ url_for('main.react_json', response_id=r.id) }}">
+            <button type="submit" class="react-btn {{ 'reacted' if r.reacted }}" aria-label="React to this argument" aria-pressed="{{ 'true' if r.reacted else 'false' }}">👍 <span class="react-count">{{ r.reaction_count }}</span></button>
+          </form>
+        </div>
       {% endfor %}
     {% else %}
       <p class="muted">No arguments yet — be the first to make the case.</p>
@@ -125,10 +138,13 @@
   var verdictSub = card.querySelector('.verdict .sub');
   var divisiveBadge = card.querySelector('.verdict .badge');
   var standing = card.querySelector('.standing');
+  var flipPrompt = card.querySelector('.flip-prompt');
+  var flipBtn = card.querySelector('.flip-btn');
   var yourVote = card.querySelector('.your-vote');
   var shareHook = card.querySelector('.share-hook');
   var errEl = form.querySelector('.vote-error');
   var btns = Array.prototype.slice.call(form.querySelectorAll('.vote-btn'));
+  var prevChoice = card.getAttribute('data-my-choice') || null;
 
   function countTo(el, to) {
     // Set the true value up front; the rAF loop only animates toward it when the
@@ -183,7 +199,8 @@
     standing.textContent = standingText(d.you);
     standing.className = 'standing standing-' + d.you.standing;
     standing.hidden = false;
-    yourVote.innerHTML = "You're on the <strong>" + d.my_choice + "</strong> side — tap the other to switch.";
+    if (flipPrompt) flipPrompt.hidden = false;
+    yourVote.innerHTML = "You're on the <strong>" + d.my_choice + "</strong> side.";
     yourVote.hidden = false;
     shareHook.hidden = false;
     btns.forEach(function (b) { b.classList.toggle('active', b.value === d.my_choice); });
@@ -196,33 +213,77 @@
     if (fresh && side) window.pmwConfetti(side);
   }
 
-  form.addEventListener('submit', function (e) {
-    var btn = e.submitter || document.activeElement;
-    var choice = btn && btn.value;
-    if (choice !== 'agree' && choice !== 'disagree') return;  // let the browser handle anything odd
-    e.preventDefault();
+  function showToast(msg) {
+    var t = document.createElement('div');
+    t.className = 'pmw-toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    requestAnimationFrame(function () { requestAnimationFrame(function () { t.classList.add('show'); }); });
+    setTimeout(function () { t.classList.remove('show'); setTimeout(function () { t.remove(); }, 350); }, 2600);
+  }
+
+  function voteChoice(choice) {
+    if (choice !== 'agree' && choice !== 'disagree') return;
     errEl.hidden = true;
     btns.forEach(function (b) { b.disabled = true; });
-    var body = 'choice=' + encodeURIComponent(choice);
+    if (flipBtn) flipBtn.disabled = true;
     fetch(jsonUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body,
+      body: 'choice=' + encodeURIComponent(choice),
       credentials: 'same-origin'
     }).then(function (r) {
       return r.json().then(function (d) { return { ok: r.ok, d: d }; });
     }).then(function (res) {
       btns.forEach(function (b) { b.disabled = false; });
+      if (flipBtn) flipBtn.disabled = false;
       if (!res.ok || !res.d.ok) {
         errEl.textContent = (res.d && res.d.error) || 'Something went wrong — try again.';
         errEl.hidden = false;
         return;
       }
+      var flipped = prevChoice && res.d.my_choice !== prevChoice;
+      prevChoice = res.d.my_choice;
       paint(res.d);
       reveal(true, res.d.my_choice);
+      if (flipped) showToast("🔄 Changed your mind — that's the whole point. Respect.");
     }).catch(function () {
-      // Network hiccup → fall back to a full-page form submit.
-      form.submit();
+      form.submit();  // network hiccup → full-page fallback
+    });
+  }
+
+  form.addEventListener('submit', function (e) {
+    var btn = e.submitter || document.activeElement;
+    var choice = btn && btn.value;
+    if (choice !== 'agree' && choice !== 'disagree') return;  // let the browser handle anything odd
+    e.preventDefault();
+    voteChoice(choice);
+  });
+
+  if (flipBtn) {
+    flipBtn.addEventListener('click', function () {
+      voteChoice(prevChoice === 'agree' ? 'disagree' : 'agree');
+    });
+  }
+
+  // Reactions on arguments — AJAX toggle with a little pop.
+  Array.prototype.slice.call(document.querySelectorAll('.react-form')).forEach(function (rf) {
+    rf.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var btn = rf.querySelector('.react-btn');
+      var cnt = rf.querySelector('.react-count');
+      btn.disabled = true;
+      fetch(rf.getAttribute('data-json'), { method: 'POST', credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          btn.disabled = false;
+          if (!d.ok) return;
+          btn.classList.toggle('reacted', d.reacted);
+          btn.setAttribute('aria-pressed', d.reacted ? 'true' : 'false');
+          cnt.textContent = d.count;
+          if (!reduce) { btn.classList.remove('pop'); void btn.offsetWidth; btn.classList.add('pop'); }
+        })
+        .catch(function () { btn.disabled = false; rf.submit(); });
     });
   });
 

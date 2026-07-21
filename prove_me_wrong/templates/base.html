@@ -178,8 +178,25 @@
 
     /* Responses */
     .response-list { margin-top: 4px; }
-    .response { padding: 14px 0; border-top: 1px solid var(--border); font-size: 0.98rem; line-height: 1.5; }
+    .response { display: flex; gap: 12px; align-items: flex-start; padding: 14px 0; border-top: 1px solid var(--border); }
     .response:first-child { border-top: none; padding-top: 4px; }
+    .response-body { flex: 1; font-size: 0.98rem; line-height: 1.5; }
+    .response.top-arg { border-top: none; background: color-mix(in srgb, #f59e0b 8%, var(--card)); border: 1px solid color-mix(in srgb, #f59e0b 34%, var(--border)); border-radius: 12px; padding: 14px; margin-bottom: 6px; }
+    .top-arg-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.66rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #b8620a; margin-bottom: 8px; }
+    .react-btn { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 800; border: 1.5px solid var(--border-strong); background: var(--card); color: var(--muted); border-radius: 999px; padding: 6px 12px; cursor: pointer; transition: transform .1s ease, background .15s ease, color .15s ease, border-color .15s ease; font-variant-numeric: tabular-nums; }
+    .react-btn:hover { border-color: var(--text); color: var(--text); }
+    .react-btn.reacted { background: var(--agree-bg); border-color: var(--agree); color: var(--agree); }
+    .react-btn.pop { animation: reactpop .32s ease; }
+    @keyframes reactpop { 0% { transform: scale(1); } 42% { transform: scale(1.28); } 100% { transform: scale(1); } }
+    .react-form { margin: 0; }
+
+    /* Change-my-mind flip */
+    .flip-prompt { margin: 14px 0 0; text-align: center; font-size: 0.92rem; color: var(--muted); }
+    .flip-btn { background: none; border: none; color: var(--text); font-weight: 800; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; padding: 0 2px; font-size: 0.95rem; }
+    .flip-btn:hover { color: var(--disagree); }
+    .pmw-toast { position: fixed; left: 50%; bottom: 30px; transform: translateX(-50%) translateY(24px); background: var(--text); color: var(--bg); font-weight: 800; padding: 13px 22px; border-radius: 999px; box-shadow: var(--shadow-lift); opacity: 0; transition: opacity .3s ease, transform .3s ease; z-index: 10000; font-size: 0.95rem; max-width: 90vw; text-align: center; }
+    .pmw-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
     .side-tag { display: inline-block; font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 999px; margin-right: 8px; vertical-align: 1px; }
     .side-tag.agree { color: var(--agree); background: var(--agree-bg); }
     .side-tag.disagree { color: var(--disagree); background: var(--disagree-bg); }
@@ -255,7 +272,8 @@
     #pmw-confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; }
 
     @media (prefers-reduced-motion: reduce) {
-      .bar > span, .vote-btn, .btn, .nav-link, .claim-list-item, a.featured { transition: none !important; }
+      .bar > span, .vote-btn, .btn, .nav-link, .claim-list-item, a.featured, .react-btn, .pmw-toast { transition: none !important; }
+      .react-btn.pop { animation: none !important; }
     }
   </style>
 </head>

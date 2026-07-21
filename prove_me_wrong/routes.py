@@ -22,10 +22,16 @@ VOTER_COOKIE = "voter_id"
 VOTER_COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 5
 
 VOTE_RATE_LIMIT_WINDOW_SECONDS = 60
+# A voter has exactly one (changeable) vote per claim, so flipping never skews the
+# tally — this cap is just an abuse ceiling, and it's generous enough that a genuine
+# "changed my mind" flip right after voting always goes through.
+VOTE_RATE_LIMIT_MAX = 8
 RESPONSE_RATE_LIMIT_WINDOW_SECONDS = 60 * 60
 RESPONSE_RATE_LIMIT_MAX = 5
 CLAIM_SUBMIT_RATE_LIMIT_WINDOW_SECONDS = 60 * 60
 CLAIM_SUBMIT_RATE_LIMIT_MAX = 3
+REACT_RATE_LIMIT_WINDOW_SECONDS = 60 * 60
+REACT_RATE_LIMIT_MAX = 60
 
 CLAIM_MIN_LENGTH = 10
 CLAIM_MAX_LENGTH = 280
@@ -129,7 +135,7 @@ def claim_context(claim_id):
     voter_id = get_voter_id()
     counts = db.get_vote_counts(claim_id)
     stats = claim_stats(counts)
-    responses = db.get_responses(claim_id)
+    responses = db.get_responses(claim_id, voter_id)
     summary = {
         "agree_summary": claim["summary_agree"] or "No arguments submitted yet.",
         "disagree_summary": claim["summary_disagree"] or "No arguments submitted yet.",
@@ -237,7 +243,7 @@ def claim_og(claim_id):
     return Response(png, mimetype="image/png", headers={"Cache-Control": "public, max-age=300"})
 
 
-VOTE_RATE_LIMIT_MESSAGE = "You can only change your vote once a minute — try again shortly."
+VOTE_RATE_LIMIT_MESSAGE = "You're voting awfully fast — give it a second."
 
 
 def _register_vote(claim_id, choice):
@@ -245,7 +251,7 @@ def _register_vote(claim_id, choice):
     (voter_id, None) on success, or (None, error_message) if rate-limited."""
     ip = request.remote_addr
     since = db.utc_ago(VOTE_RATE_LIMIT_WINDOW_SECONDS)
-    if db.count_rate_limit_events(ip, "vote", since, claim_id=claim_id) > 0:
+    if db.count_rate_limit_events(ip, "vote", since, claim_id=claim_id) >= VOTE_RATE_LIMIT_MAX:
         return None, VOTE_RATE_LIMIT_MESSAGE
     voter_id = get_voter_id() or str(uuid.uuid4())
     db.cast_vote(claim_id, voter_id, choice)
@@ -327,6 +333,45 @@ def respond(claim_id):
 
     response = redirect(url_for("main.claim_detail", claim_id=claim_id))
     return set_voter_cookie(response, voter_id)
+
+
+def _react_allowed():
+    ip = request.remote_addr
+    since = db.utc_ago(REACT_RATE_LIMIT_WINDOW_SECONDS)
+    return db.count_rate_limit_events(ip, "react", since) < REACT_RATE_LIMIT_MAX
+
+
+@bp.route("/response/<int:response_id>/react.json", methods=["POST"])
+def react_json(response_id):
+    resp = db.get_response(response_id)
+    if resp is None:
+        abort(404)
+    get_approved_claim_or_404(resp["claim_id"])
+    if not _react_allowed():
+        return jsonify(ok=False, error="You're reacting a lot — take a breather."), 429
+    voter_id = get_voter_id() or str(uuid.uuid4())
+    reacted, count = db.toggle_reaction(response_id, voter_id)
+    db.record_rate_limit_event(request.remote_addr, "react")
+    payload = jsonify(ok=True, reacted=reacted, count=count)
+    return set_voter_cookie(payload, voter_id)
+
+
+@bp.route("/response/<int:response_id>/react", methods=["POST"])
+def react(response_id):
+    """No-JS fallback: toggle the reaction and redirect back to the debate."""
+    resp = db.get_response(response_id)
+    if resp is None:
+        abort(404)
+    get_approved_claim_or_404(resp["claim_id"])
+    voter_id = get_voter_id()
+    if _react_allowed():
+        voter_id = voter_id or str(uuid.uuid4())
+        db.toggle_reaction(response_id, voter_id)
+        db.record_rate_limit_event(request.remote_addr, "react")
+    redirect_resp = redirect(url_for("main.claim_detail", claim_id=resp["claim_id"]) + "#debate")
+    if voter_id:
+        set_voter_cookie(redirect_resp, voter_id)
+    return redirect_resp
 
 
 @bp.route("/submit", methods=["GET"])

@@ -40,6 +40,17 @@ CREATE TABLE IF NOT EXISTS responses (
 
 CREATE INDEX IF NOT EXISTS idx_responses_claim ON responses(claim_id, side);
 
+CREATE TABLE IF NOT EXISTS argument_reactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    response_id INTEGER NOT NULL,
+    voter_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (response_id) REFERENCES responses(id) ON DELETE CASCADE,
+    UNIQUE(response_id, voter_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_reactions_response ON argument_reactions(response_id);
+
 CREATE TABLE IF NOT EXISTS rate_limit_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ip_address TEXT NOT NULL,
@@ -218,12 +229,52 @@ def add_response(claim_id, voter_id, side, body):
     conn.commit()
 
 
-def get_responses(claim_id):
+def get_responses(claim_id, voter_id=None):
+    """Arguments for a claim, each with its reaction count and whether the given
+    voter has reacted. Sorted best-first (most reactions), then newest."""
     rows = get_db().execute(
-        "SELECT * FROM responses WHERE claim_id = ? ORDER BY created_at DESC, id DESC",
-        (claim_id,),
+        """
+        SELECT r.*,
+               COUNT(ar.id) AS reaction_count,
+               MAX(CASE WHEN ar.voter_id = ? THEN 1 ELSE 0 END) AS reacted
+        FROM responses r
+        LEFT JOIN argument_reactions ar ON ar.response_id = r.id
+        WHERE r.claim_id = ?
+        GROUP BY r.id
+        ORDER BY reaction_count DESC, r.created_at DESC, r.id DESC
+        """,
+        (voter_id or "", claim_id),
     ).fetchall()
     return [dict(row) for row in rows]
+
+
+def get_response(response_id):
+    row = get_db().execute("SELECT * FROM responses WHERE id = ?", (response_id,)).fetchone()
+    return row_to_dict(row)
+
+
+def toggle_reaction(response_id, voter_id):
+    """Add or remove one voter's reaction to an argument. Returns
+    (reacted_now, new_total_count)."""
+    conn = get_db()
+    existing = conn.execute(
+        "SELECT id FROM argument_reactions WHERE response_id = ? AND voter_id = ?",
+        (response_id, voter_id),
+    ).fetchone()
+    if existing:
+        conn.execute("DELETE FROM argument_reactions WHERE id = ?", (existing["id"],))
+        reacted = False
+    else:
+        conn.execute(
+            "INSERT INTO argument_reactions (response_id, voter_id, created_at) VALUES (?, ?, ?)",
+            (response_id, voter_id, utc_now()),
+        )
+        reacted = True
+    conn.commit()
+    count = conn.execute(
+        "SELECT COUNT(*) AS c FROM argument_reactions WHERE response_id = ?", (response_id,)
+    ).fetchone()["c"]
+    return reacted, count
 
 
 def count_rate_limit_events(ip_address, action, since, claim_id=None):
