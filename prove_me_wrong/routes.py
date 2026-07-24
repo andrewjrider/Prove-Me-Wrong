@@ -157,6 +157,36 @@ def healthz():
     return "ok"
 
 
+@bp.route("/favicon.ico")
+def favicon():
+    return redirect(url_for("static", filename="favicon.ico"))
+
+
+@bp.route("/robots.txt")
+def robots():
+    body = "\n".join([
+        "User-agent: *",
+        "Allow: /",
+        "Disallow: /admin",
+        "Sitemap: " + url_for("main.sitemap", _external=True),
+        "",
+    ])
+    return Response(body, mimetype="text/plain")
+
+
+@bp.route("/sitemap.xml")
+def sitemap():
+    urls = [url_for("main.index", _external=True)]
+    urls += [url_for("main.claim_detail", claim_id=c["id"], _external=True) for c in db.get_claims()]
+    parts = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ]
+    parts += ["  <url><loc>{}</loc></url>".format(u) for u in urls]
+    parts.append("</urlset>")
+    return Response("\n".join(parts), mimetype="application/xml")
+
+
 SORT_OPTIONS = ("hot", "new", "divisive")
 
 

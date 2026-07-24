@@ -3,6 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" sizes="any">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
   <title>{{ claim.text|truncate(40, True, '…') }} — Prove Me Wrong</title>
   <meta name="description" content="{{ claim.text }} — currently {{ agree_pct }}% Agree / {{ disagree_pct }}% Disagree on Prove Me Wrong.">
   <meta property="og:type" content="website">
